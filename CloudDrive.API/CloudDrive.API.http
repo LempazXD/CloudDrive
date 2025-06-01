@@ -1,0 +1,6 @@
+@CloudDrive.API_HostAddress = http://localhost:5099
+
+GET {{CloudDrive.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
