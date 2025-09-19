@@ -8,7 +8,8 @@ public class CloudDriveDbContext : DbContext
 {
 	public DbSet<UserEntity> Users => Set<UserEntity>();
 	public DbSet<FileEntity> Files => Set<FileEntity>();
-	public DbSet<AuthCodeEntity> AuthCodes => Set<AuthCodeEntity>();
+	public DbSet<MailCodeEntity> MailCodes => Set<MailCodeEntity>();
+	public DbSet<TemporaryRegistrationDataEntity> TempRegData => Set<TemporaryRegistrationDataEntity>();
 
 	public CloudDriveDbContext(DbContextOptions options)
 		: base(options) { }
@@ -18,7 +19,8 @@ public class CloudDriveDbContext : DbContext
 	{
 		modelBuilder.ApplyConfiguration(new FileEntityConfiguration());
 		modelBuilder.ApplyConfiguration(new UserEntityConfiguration());
-		modelBuilder.ApplyConfiguration(new AuthCodeEntityConfiguration());
+		modelBuilder.ApplyConfiguration(new MailCodeEntityConfiguration());
+		modelBuilder.ApplyConfiguration(new TemporaryRegistrationDataEntityConfiguration());
 
 		base.OnModelCreating(modelBuilder);
 	}

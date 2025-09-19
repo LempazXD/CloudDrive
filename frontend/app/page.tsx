@@ -10,15 +10,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Cloud, Mail, Lock, User, Shield } from "lucide-react"
 import Link from "next/link"
-import { login } from "@/lib/api"
+import { login, register } from "@/lib/api"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 
 export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+    loginEmail: "",
+    loginPassword: "",
+    registerUsername: "",
+    registerEmail: "",
+    registerPassword: "",
+    registerConfirmPassword: "",
   })
   const router = useRouter()
 
@@ -30,14 +33,14 @@ export default function AuthPage() {
     }))
   }
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     
     try {
       const response = await login({
-        email: formData.email,
-        password: formData.password,
+        email: formData.loginEmail,
+        password: formData.loginPassword,
       })
       
       // Сохраняем токен в localStorage
@@ -45,11 +48,25 @@ export default function AuthPage() {
       
       // Перенаправляем на главную страницу
       router.push("/dashboard")
-      
-      toast.success("Успешный вход в систему!")
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Произошла ошибка при входе")
-    } finally {
+      console.error("Ошибка при входе:", error)
+      setIsLoading(false)
+    }
+  }
+
+  const handleRegister = async (e: FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    
+    try {
+      await register({
+        username: formData.registerUsername,
+        email: formData.registerEmail,
+        password: formData.registerPassword,
+        confirmPassword: formData.registerConfirmPassword,
+      })
+    } catch (error) {
+      console.error("Ошибка при регистрации:", error)
       setIsLoading(false)
     }
   }
@@ -93,33 +110,33 @@ export default function AuthPage() {
                   <CardDescription className="text-center">Войдите в свой аккаунт Cloud Drive</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email">Логин или email</Label>
+                      <Label htmlFor="loginEmail">Логин или email</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input 
-                          id="email" 
+                          id="loginEmail" 
                           type="text" 
                           placeholder="example@email.com" 
                           className="pl-10" 
                           required 
-                          value={formData.email}
+                          value={formData.loginEmail}
                           onChange={handleInputChange}
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="password">Пароль</Label>
+                      <Label htmlFor="loginPassword">Пароль</Label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input 
-                          id="password" 
+                          id="loginPassword" 
                           type="password" 
                           placeholder="••••••••" 
                           className="pl-10" 
                           required 
-                          value={formData.password}
+                          value={formData.loginPassword}
                           onChange={handleInputChange}
                         />
                       </div>
@@ -179,12 +196,20 @@ export default function AuthPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
-                  <form onSubmit={handleSubmit} className="space-y-4">
+                  <form onSubmit={handleRegister} className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName">Имя пользователя</Label>
+                      <Label htmlFor="registerUsername">Имя пользователя</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input id="fullName" type="text" placeholder="testaccount" className="pl-10" required />
+                        <Input
+                          id="registerUsername"
+                          type="text"
+                          placeholder="Введите логин"
+                          className="pl-10"
+                          required
+                          value={formData.registerUsername}
+                          onChange={handleInputChange}
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -197,6 +222,8 @@ export default function AuthPage() {
                           placeholder="example@email.com"
                           className="pl-10"
                           required
+                          value={formData.registerEmail}
+                          onChange={handleInputChange}
                         />
                       </div>
                     </div>
@@ -210,14 +237,24 @@ export default function AuthPage() {
                           placeholder="••••••••"
                           className="pl-10"
                           required
+                          value={formData.registerPassword}
+                          onChange={handleInputChange}
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">Подтвердите пароль</Label>
+                      <Label htmlFor="registerConfirmPassword">Подтвердите пароль</Label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input id="confirmPassword" type="password" placeholder="••••••••" className="pl-10" required />
+                        <Input
+                          id="registerConfirmPassword"
+                          type="password"
+                          placeholder="••••••••"
+                          className="pl-10"
+                          required
+                          value={formData.registerConfirmPassword}
+                          onChange={handleInputChange}
+                        />
                       </div>
                     </div>
                     <Button

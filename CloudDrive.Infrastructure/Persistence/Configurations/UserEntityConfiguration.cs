@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CloudDrive.Infrastructure.Persistence.Configurations;
 
-public class UserEntityConfiguration : IEntityTypeConfiguration<UserEntity>
+public class UserEntityConfiguration : IEntityTypeConfiguration<UserEntity> // !!! Убрать Entity в названии?
 {
 	public void Configure(EntityTypeBuilder<UserEntity> builder)
 	{

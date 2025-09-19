@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace CloudDrive.Infrastructure.Persistence.Configurations;
 
-public class FileEntityConfiguration : IEntityTypeConfiguration<FileEntity>
+public class FileEntityConfiguration : IEntityTypeConfiguration<FileEntity> // !!! Мб переименовать (убрать Entity в названии?)
 {
 	public void Configure(EntityTypeBuilder<FileEntity> builder)
 	{

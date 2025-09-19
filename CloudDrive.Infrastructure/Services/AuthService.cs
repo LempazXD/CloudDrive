@@ -1,36 +1,43 @@
-﻿using CloudDrive.Application.DTOs.Requests;
-using CloudDrive.Application.Interfaces;
-using CloudDrive.Domain.Entities;
+﻿using CloudDrive.Application.Interfaces;
+using CloudDrive.Application.Requests;
+using CloudDrive.Domain.Enums;
 using CloudDrive.Domain.Interfaces;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace CloudDrive.Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
-	private readonly IConfiguration _config;
 	private readonly IUserRepository _userRep;
 	private readonly IEmailService _emailService;
-	private readonly IAuthCodeRepository _authCodeRep;
+	private readonly IMailCodeRepository _mailCodeRep;
+	private readonly ItokenService _tokenService;
 
-	private const int _authCodeExpirationMinutes = 5;
-	private const string _authCodeSymbols = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-	private const int _authCodeLength = 6;
+	private const int _mailCodeExpirationMinutes = 5;
 
-	public AuthService(IUserRepository userRep, IConfiguration config, IEmailService emailService, IAuthCodeRepository authCodeRep)
+	public AuthService(IUserRepository userRep, IEmailService emailService, IMailCodeRepository authCodeRep, ItokenService tokenService)
 	{
-		_config = config;
 		_userRep = userRep;
 		_emailService = emailService;
-		_authCodeRep = authCodeRep;
+		_mailCodeRep = authCodeRep;
+		_tokenService = tokenService;
 	}
 
-	public async Task<string> Login(LoginRequestDto request)
+	public async Task SendRegisterCode(SendRegisterCodeRequest request)
+	{
+		if (await _userRep.UserExistsByUsernameOrEmail(request.Username, request.Email))
+			throw new Exception("Пользователь с таким логином или email уже существует");
+
+		_emailService.PreSendMailCode(request.Email, MailCodeType.Registration);
+
+		// Тут добавить запись в таблицу со временными данными для регистрации
+	}
+
+	public async Task<string> Register(RegisterRequest request)
+	{
+		return "";
+	}
+
+	public async Task<string> Login(LoginRequest request)
 	{
 		var user = await _userRep.FindByEmail(request.UsernameOrEmail)
 			?? await _userRep.FindByUsername(request.UsernameOrEmail);
@@ -38,154 +45,47 @@ public class AuthService : IAuthService
 		if (user == null || !BCrypt.Net.BCrypt.EnhancedVerify(request.Password, user.Password))
 			throw new Exception("Неверный логин или пароль");
 
-		return GenerateJwtToken(user!);
+		return _tokenService.CreateToken(user!);
 	}
 
-	public async Task LoginAuthCode(LoginAuthCodeRequestDto request)
+	public async Task<string> LoginAuthCode(MailCodeLoginRequest request)
 	{
-		var user = await _userRep.FindByEmail(request.LoginOrEmail)
-			?? await _userRep.FindByUsername(request.LoginOrEmail);
+		var user = await _userRep.FindByEmail(request.UsernameOrEmail)
+			?? await _userRep.FindByUsername(request.UsernameOrEmail);
 
-		var newCode = GenerateAuthCode();
+		_emailService.PreSendMailCode(user?.Email, MailCodeType.Login);
 
-		var authCode = await _authCodeRep.FindByUsernameOrEmail(request.LoginOrEmail);
-		var now = DateTime.UtcNow;
-
-		if (authCode == null)
-		{
-			authCode = new AuthCodeEntity
-			{
-				UsernameOrEmail = request.LoginOrEmail,
-				Code = newCode,
-				CreatedAt = now,
-				FailedAttempts = 0,
-				SentCodeCount = 1
-			};
-
-			await _authCodeRep.Add(authCode);
-		}
-		else
-		{
-			var delay = GetAuthCodeDelay(authCode.SentCodeCount);
-			var nextAvailableTime = authCode.CreatedAt.ToUniversalTime().AddMinutes(delay);
-
-			if (now < nextAvailableTime)
-			{
-				//var secondsLeft = Math.Ceiling((nextAvailableTime - now).TotalSeconds);
-				var secondsLeft = (nextAvailableTime - now).TotalSeconds;
-				throw new Exception($"Подождите {secondsLeft} секунд перед отправкой нового кода");
-			}
-
-			authCode.Code = newCode;
-			authCode.CreatedAt = DateTime.UtcNow;
-			authCode.FailedAttempts = 0;
-			authCode.SentCodeCount++;
-
-			_authCodeRep.Update(authCode);
-		}
-
-		await _authCodeRep.SaveChanges();
-		if (user != null)
-			await _emailService.SendAuthCode(user.Email, newCode);
-
+		return "а";
 	}
 
-	public async Task<string?> VerifyAuthCode(VerifyAuthCodeRequestDto request)
+	public async Task<string?> VerifyMailCode(string usernameOrEmail, string code)
 	{
-		var authCode = await _authCodeRep.FindByUsernameOrEmail(request.LoginOrEmail);
+		var user = await _userRep.FindByEmail(usernameOrEmail)
+			?? await _userRep.FindByUsername(usernameOrEmail);
 
-		if (authCode == null)
+		var authCode = await _mailCodeRep.FindByEmail(user?.Email);
+
+		if (authCode == null) // Избавиться от этого
 			throw new Exception("Код не найден");
 
-		bool isExpired = DateTime.UtcNow > authCode.CreatedAt.ToUniversalTime().AddMinutes(_authCodeExpirationMinutes);
+		bool isExpired = DateTime.UtcNow > authCode.CreatedAt.ToUniversalTime().AddMinutes(_mailCodeExpirationMinutes);
 		if (authCode.FailedAttempts >= 3 || isExpired)
 			throw new Exception("Код недействителен");
 
-		if (request.Code != authCode.Code)
+		if (code != authCode.Code)
 		{
-			authCode.FailedAttempts++;
-			_authCodeRep.Update(authCode);
-			await _authCodeRep.SaveChanges();
+			authCode.WrongCode();
+			_mailCodeRep.Update(authCode);
+			await _mailCodeRep.SaveChanges();
 			throw new Exception("Неверный код");
 		}
 
-		var user = await _userRep.FindByEmail(request.LoginOrEmail)
-			?? await _userRep.FindByUsername(request.LoginOrEmail);
+		authCode.ResetCode();
+		_mailCodeRep.Update(authCode);
+		await _mailCodeRep.SaveChanges();
 
-		if (user == null)
-			throw new Exception("Пользователь не найден");
-
-		authCode.Code = null;
-		_authCodeRep.Update(authCode);
-		await _authCodeRep.SaveChanges();
-
-		return GenerateJwtToken(user);
-	}
-
-	public async Task Register(RegisterRequestDto request)
-	{
-		if (await _userRep.UserExistsByUsernameOrEmail(request.Username, request.Email))
-			throw new Exception("Пользователь с таким логином или email уже существует");
-
-		var user = new UserEntity
-		{
-			Username = request.Username,
-			Email = request.Email,
-			Password = BCrypt.Net.BCrypt.EnhancedHashPassword(request.Password),
-			CreatedAt = DateTime.UtcNow,
-		};
-
-		await _userRep.Add(user);
-		await _userRep.SaveChanges();
-
-		await Task.Run(() => Directory.CreateDirectory($"C:\\storage\\{user.Username}"));
-	}
-
-	private string GenerateJwtToken(UserEntity user)
-	{
-		var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-		var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-		var claims = new[]
-		{
-			new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-			new Claim(ClaimTypes.Name, user.Username),
-			new Claim(ClaimTypes.Email, user.Email)
-		};
-
-		var token = new JwtSecurityToken(
-			issuer: _config["Jwt:Issuer"],
-			audience: _config["Jwt:Audience"],
-			claims: claims,
-			expires: DateTime.UtcNow.AddDays(7),
-			signingCredentials: creds);
-
-		return new JwtSecurityTokenHandler().WriteToken(token);
-	}
-
-	private string GenerateAuthCode()
-	{
-		var code = new char[_authCodeLength];
-
-		using var rng = RandomNumberGenerator.Create();
-		var randomBytes = new byte[_authCodeLength];
-
-		rng.GetBytes(randomBytes);
-
-		for (int i = 0; i < _authCodeLength; i++)
-		{
-			int index = randomBytes[i] % _authCodeSymbols.Length;
-			code[i] = _authCodeSymbols[index];
-		}
-
-		return new string(code);
-	}
-
-	private int GetAuthCodeDelay(int sentCodeCount)
-	{
-		if (sentCodeCount <= 1)
-			return 1;
-		else
-			return Math.Min((int)Math.Pow(sentCodeCount, 2), 30);
+		return _tokenService.CreateToken(user);
+		// !!! Если пользоваель null, всё будет норм?
+		// !!! Если возвращать null, всё будет норм или нужны проверки?
 	}
 }

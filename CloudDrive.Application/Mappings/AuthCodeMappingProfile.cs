@@ -8,6 +8,6 @@ public class AuthCodeMappingProfile : Profile
 {
 	public AuthCodeMappingProfile()
 	{
-		CreateMap<AuthCodeEntity, AuthCodeDto>();
+		CreateMap<MailCodeEntity, MailCodeDto>();
 	}
 }

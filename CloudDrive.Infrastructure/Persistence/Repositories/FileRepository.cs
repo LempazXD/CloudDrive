@@ -1,4 +1,5 @@
 ﻿using CloudDrive.Domain.Entities;
+using CloudDrive.Domain.Enums;
 using CloudDrive.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,42 +19,42 @@ public class FileRepository : IFileRepository
 		await _context.AddAsync(file);
 	}
 
-	public async Task DeletePermanentlyById(int id)
+	public async Task DeletePermanentlyById(Guid id)
 	{
 		await _context.Files
 			.Where(f => f.Id == id)
 			.ExecuteDeleteAsync();
 	}
 
-	public async Task<List<FileEntity>> GetAllByUserId(int userId)
+	public async Task<List<FileEntity>> GetAllByUserId(Guid userId)
 	{
 		return await _context.Files
 			.Where(f => f.UserId == userId)
 			.ToListAsync();
 	}
 
-	public async Task<FileEntity?> GetOneById(int id)
+	public async Task<FileEntity?> GetOneById(Guid id)
 	{
 		return await _context.Files
 			.Where(f => f.Id == id)
 			.FirstOrDefaultAsync();
 	}
 
-	public async Task MoveToTrashById(int id)
+	public async Task MoveToTrashById(Guid id)
 	{
 		await _context.Files
 			.Where(f => f.Id == id)
 			.ExecuteUpdateAsync(s => s
-				.SetProperty(f => f.IsDeleted, true)
+				.SetProperty(f => f.Status, FileStatusType.Deleted)
 				.SetProperty(f => f.DeletionTime, DateTime.UtcNow));
 	}
 
-	public async Task RestoreById(int id)
+	public async Task RestoreById(Guid id)
 	{
 		await _context.Files
 			.Where(f => f.Id == id)
 			.ExecuteUpdateAsync(s => s
-				.SetProperty(f => f.IsDeleted, false)
+				.SetProperty(f => f.Status, FileStatusType.Completed)
 				.SetProperty(f => f.DeletionTime, (DateTime?)null));
 	}
 

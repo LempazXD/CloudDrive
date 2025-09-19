@@ -4,11 +4,11 @@ namespace CloudDrive.Domain.Interfaces;
 
 public interface IFileRepository
 {
-	Task<List<FileEntity>> GetAllByUserId(int userId);
-	Task<FileEntity?> GetOneById(int id);
-	Task MoveToTrashById(int id);
-	Task RestoreById(int id);
-	Task DeletePermanentlyById(int id);
+	Task<List<FileEntity>> GetAllByUserId(Guid userId);
+	Task<FileEntity?> GetOneById(Guid id);
+	Task MoveToTrashById(Guid id);
+	Task RestoreById(Guid id);
+	Task DeletePermanentlyById(Guid id);
 	Task Add(FileEntity file);
 	Task SaveChanges();
 }

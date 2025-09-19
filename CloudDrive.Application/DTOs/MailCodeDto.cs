@@ -1,6 +1,6 @@
 ﻿namespace CloudDrive.Application.DTOs;
 
-public class AuthCodeDto
+public class MailCodeDto
 {
 	public int Id { get; set; }
 	public string UsernameOrMail { get; set; } = default!;

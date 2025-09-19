@@ -1,12 +1,12 @@
-﻿using CloudDrive.Application.DTOs.Requests;
+﻿using CloudDrive.Application.Requests;
 
 namespace CloudDrive.Application.Interfaces;
 
 public interface IAuthService
 {
-
-	Task Register(RegisterRequestDto request);
-	Task<string> Login(LoginRequestDto request);
-	Task LoginAuthCode(LoginAuthCodeRequestDto request);
-	Task<string?> VerifyAuthCode(VerifyAuthCodeRequestDto request);
+	Task SendRegisterCode(SendRegisterCodeRequest request);
+	Task<string> Register(RegisterRequest request);
+	Task<string> Login(LoginRequest request);
+	Task<string> LoginAuthCode(MailCodeLoginRequest request);
+	Task<string?> VerifyMailCode(string usernameOrEmail, string code);
 }

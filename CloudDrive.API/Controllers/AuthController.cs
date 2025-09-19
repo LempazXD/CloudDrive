@@ -1,5 +1,7 @@
-﻿using CloudDrive.Application.DTOs.Requests;
-using CloudDrive.Application.Interfaces;
+﻿using CloudDrive.Application.Interfaces;
+using CloudDrive.Application.Requests;
+using CloudDrive.Application.Responses;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CloudDrive.API.Controllers;
@@ -15,31 +17,34 @@ public class AuthController : ControllerBase
 		_authService = authService;
 	}
 
-	[HttpPost("register")]
-	public async Task<IActionResult> Register(RegisterRequestDto request)
-	{
-		await _authService.Register(request);
-		return Ok();
-	}
-
-	[HttpPost("login")]
-	public async Task<IActionResult> Login(LoginRequestDto request)
+	[AllowAnonymous]
+	[HttpPost]
+	public async Task<IActionResult> Login(LoginRequest request)
 	{
 		var token = await _authService.Login(request);
-		return Ok(new { token });
+		return Ok(new TokenResponse { Token = token }); // !!! Переименовать TokenResponse
 	}
 
-	[HttpPost("loginAuthCode")]
-	public async Task<IActionResult> LoginAuthCode(LoginAuthCodeRequestDto request)
+	[AllowAnonymous]
+	[HttpPost]
+	public async Task<IActionResult> MailCodeLogin(MailCodeLoginRequest request)
 	{
-		await _authService.LoginAuthCode(request);
+		var token = await _authService.LoginAuthCode(request);
+		return Ok(new TokenResponse { Token = token });
+	}
+
+	[Authorize]
+	[HttpPost]
+	public async Task<IActionResult> Logout(LogoutRequest request)
+	{
 		return Ok();
 	}
 
-	[HttpPost("verifyAuthCode")]
-	public async Task<IActionResult> VerifyAuthCode(VerifyAuthCodeRequestDto request)
+	// [Атрибут поставить бы]
+	[HttpPost]
+	public async Task<IActionResult> Refresh(RefreshRequest request) // !!! Refresh или RefreshToken?
 	{
-		var token = await _authService.VerifyAuthCode(request);
-		return Ok(new { token });
+		return Ok();
 	}
+
 }

@@ -3,7 +3,8 @@
 public class FileDto
 {
 	public int Id { get; set; }
-	public string Name { get; set; } = default!;
+	public string OriginalName { get; set; } = default!;
+	public string StorageName { get; set; } = default!;
 	public bool IsFolder { get; set; }
 	public string Extension { get; set; } = default!;
 	public long Size { get; set; }

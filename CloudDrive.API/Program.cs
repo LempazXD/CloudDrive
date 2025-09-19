@@ -10,7 +10,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Настройка DI
+var key = Encoding.UTF8.GetBytes("super_secret_key_12345"); // секрет для подписи
 
 // DbContext
 builder.Services.AddDbContext<CloudDriveDbContext>(options =>
@@ -19,22 +19,40 @@ builder.Services.AddDbContext<CloudDriveDbContext>(options =>
 // Репозитории
 builder.Services.AddScoped<IFileRepository, FileRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IAuthCodeRepository, AuthCodeRepository>();
+builder.Services.AddScoped<IMailCodeRepository, MailCodeRepository>();
 
 // Автомапперы
 builder.Services.AddAutoMapper(typeof(FileMappingProfile).Assembly, typeof(UserMappingProfile).Assembly);
 
 // Сервисы
-builder.Services.AddScoped<IFileManager, FileManager>();
+builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IStorageService, StorageService>();
+builder.Services.AddScoped<ItokenService, TokenService	>();
+
+/* builder.Services.AddAuthentication(options =>
+{
+	options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+	options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+	options.TokenValidationParameters = new TokenValidationParameters
+	{
+		ValidateIssuer = false, // пока не проверяем издателя
+		ValidateAudience = false, // и получателя
+		ValidateLifetime = true, // проверять срок жизни
+		ValidateIssuerSigningKey = true, // проверять подпись
+		IssuerSigningKey = new SymmetricSecurityKey(key) // ключ
+	};
+}); */
 
 // Прочее
 builder.Services.AddControllers();
+builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// Jwt
 builder.Services.AddAuthentication("Bearer")
 	.AddJwtBearer("Bearer", options =>
 	{
@@ -51,8 +69,15 @@ builder.Services.AddAuthentication("Bearer")
 		};
 	});
 
-builder.Services.AddAuthorization();
-
+builder.Services.AddCors(options =>
+{
+	options.AddDefaultPolicy(policy =>
+	{
+		policy.AllowAnyOrigin();
+		policy.AllowAnyHeader();
+		policy.AllowAnyMethod();
+	});
+});
 
 var app = builder.Build();
 
@@ -67,6 +92,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseCors();
 app.MapControllers();
 
 app.Run();
