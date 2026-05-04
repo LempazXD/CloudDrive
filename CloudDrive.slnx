@@ -6,6 +6,7 @@
   </Folder>
   <Folder Name="/src/" />
   <Folder Name="/src/Common/">
+    <Project Path="src/Common/CloudDrive.Common.Api/CloudDrive.Common.Api.csproj" />
     <Project Path="src/Common/CloudDrive.Common/CloudDrive.Common.csproj" Id="c1ee200f-e951-464e-928c-3b20ea7e8fdb" />
   </Folder>
   <Folder Name="/src/Host/">
