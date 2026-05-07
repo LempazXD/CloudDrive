@@ -6,7 +6,7 @@ namespace CloudDrive.Common.Api.Extensions;
 
 public static class AppErrorExtensions
 {
-	extension(AppError error)
+	extension(Error error)
 	{
 		public ProblemDetails ToProblemDetails()
 		{
@@ -16,8 +16,8 @@ public static class AppErrorExtensions
 			{
 				Status = status,
 				Title = error.Type.ToTitle(),
-				Detail = status == StatusCodes.Status500InternalServerError
-					? "An unexpected error occurred" // Do not leak internal details to the client
+				Detail = status == StatusCodes.Status500InternalServerError  // Не раскрываем внутренние детали клиенту
+					? "An unexpected error occurred"
 					: error.Description,
 				Extensions = { ["code"] = error.Code }
 			};

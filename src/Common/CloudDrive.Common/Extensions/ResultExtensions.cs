@@ -6,7 +6,6 @@ public static class ResultExtensions
 {
 	extension(Result result)
 	{
-		// Convert Result to Result<T>
 		public Result<T> ToValueResult<T>(T value)
 		{
 			return result.IsSuccess
@@ -17,52 +16,85 @@ public static class ResultExtensions
 
 	extension<T>(Result<T> result)
 	{
-		// Transforms the value inside Result without leaving the railway
-		public Result<TOut> Map<TOut>(Func<T, TOut> mapper)
+		// Проверяет условие на значении mid-pipeline
+		public Result<T> Ensure(
+			Func<T, bool> predicate,
+			Error error)
+		{
+			if (result.IsFailure)
+				return result;
+
+			return predicate(result.Value)
+				? result
+				: Result<T>.Failure(error);
+		}
+
+		// Трансформирует значение внутри Result в случае успеха
+		public Result<TOut> Map<TOut>(
+			Func<T, TOut> mappingFunc)
 		{
 			return result.IsSuccess
-				? Result<TOut>.Success(mapper(result.Value))
+				? Result<TOut>.Success(mappingFunc(result.Value))
 				: Result<TOut>.Failure(result.Error);
 		}
 
-		// Chain operations that return Results or fail
-		public Result<TOut> Bind<TOut>(Func<T, Result<TOut>> binder)
+		// Связывает операции, которые возвращают Result или завершаются ошибкой
+		public Result<TOut> Bind<TOut>(
+			Func<T, Result<TOut>> func)
 		{
-			return result.IsSuccess
-				? binder(result.Value)
-				: Result<TOut>.Failure(result.Error);
+			if (result.IsFailure)
+				return Result<TOut>.Failure(result.Error);
+
+			return func(result.Value);
 		}
 
-		// Collapses Result into a value - the exit from the railway
-		public TOut Match<TOut>(Func<T, TOut> onSuccess, Func<AppError, TOut> onFailure)
+		public async Task<Result<TOut>> Bind<TOut>(
+			Func<T, Task<Result<TOut>>> func)
+		{
+			if (result.IsFailure)
+				return Result<TOut>.Failure(result.Error);
+
+			return await func(result.Value);
+		}
+
+		// Выполняет побочное действие в случае успеха (логи, события и т.д.)
+		public Result<T> Tap(Action<T> action)
+		{
+			if (result.IsSuccess)
+				action(result.Value);
+
+			return result;
+		}
+
+		public async Task<Result<T>> Tap(Func<Task> func)
+		{
+			if (result.IsSuccess)
+				await func();
+
+			return result;
+		}
+
+		// Преобразует Result в конечное значение, обрабатывая оба случая: успех и ошибку
+		public TOut Match<TOut>(
+			Func<T, TOut> onSuccess,
+			Func<Error, TOut> onFailure)
 		{
 			return result.IsSuccess
 				? onSuccess(result.Value)
 				: onFailure(result.Error);
 		}
+	}
 
-		// Execute side action on success (logs, events, etc)
-		public Result<T> Tap(Action<T> action)
+	extension<T>(Task<Result<T>> resultTask)
+	{
+		public async Task<Result<T>> Tap(Func<Task> func)
 		{
+			Result<T> result = await resultTask;
+
 			if (result.IsSuccess)
-				action(result.Value);
-			return result;
-		}
+				await func();
 
-		// Executa side action on failure (logs, events, etc)
-		public Result<T> TapError(Action<AppError> action)
-		{
-			if (result.IsFailure)
-				action(result.Error);
 			return result;
-		}
-
-		// Validates a condition on the value mid-pipeline
-		public Result<T> Ensure(Func<T, bool> predicate, AppError error)
-		{
-			if (!result.IsSuccess)
-				return result;
-			return predicate(result.Value) ? result : Result<T>.Failure(error);
 		}
 	}
 }

@@ -33,6 +33,6 @@ public static class ResultExtensions
 		}
 	}
 
-	private static ProblemHttpResult Failure(AppError error) =>
+	private static ProblemHttpResult Failure(Error error) =>
 		TypedResults.Problem(error.ToProblemDetails());
 }

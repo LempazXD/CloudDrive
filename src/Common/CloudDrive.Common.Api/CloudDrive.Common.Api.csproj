@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -9,7 +8,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\CloudDrive.Common\CloudDrive.Common.csproj" />
+		<ProjectReference Include="..\CloudDrive.Common\CloudDrive.Common.csproj" />
 	</ItemGroup>
 
 </Project>

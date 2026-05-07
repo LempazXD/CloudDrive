@@ -7,25 +7,20 @@
   <Folder Name="/src/" />
   <Folder Name="/src/Common/">
     <Project Path="src/Common/CloudDrive.Common.Api/CloudDrive.Common.Api.csproj" />
-    <Project Path="src/Common/CloudDrive.Common/CloudDrive.Common.csproj" Id="c1ee200f-e951-464e-928c-3b20ea7e8fdb" />
+    <Project Path="src/Common/CloudDrive.Common/CloudDrive.Common.csproj" />
   </Folder>
   <Folder Name="/src/Host/">
     <Project Path="src/Host/CloudDrive.Host/CloudDrive.Host.csproj" Id="6d9e7c66-cc22-4e9f-a317-d85bb948415e" />
   </Folder>
   <Folder Name="/src/Modules/" />
   <Folder Name="/src/Modules/Identity/">
-    <Project Path="src/Modules/Identity/Identity.Api/Identity.Api.csproj" Id="003767b1-ce71-4f56-b1ac-cf10cee0e20c" />
-    <Project Path="src/Modules/Identity/Identity.Contracts/Identity.Contracts.csproj" />
-    <Project Path="src/Modules/Identity/Identity.Core/Identity.Core.csproj" Id="63225628-feec-4b03-b415-849cf5519b78" />
-    <Project Path="src/Modules/Identity/Identity.Infrastructure/Identity.Infrastructure.csproj" />
+    <Project Path="src/Modules/Identity/CloudDrive.Identity.Api/CloudDrive.Identity.Api.csproj" />
+    <Project Path="src/Modules/Identity/CloudDrive.Identity.Contracts/CloudDrive.Identity.Contracts.csproj" />
+    <Project Path="src/Modules/Identity/CloudDrive.Identity.Core/CloudDrive.Identity.Core.csproj" />
+    <Project Path="src/Modules/Identity/CloudDrive.Identity.Infrastructure/CloudDrive.Identity.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/" />
-  <Folder Name="/tests/IntegrationTests/" />
-  <Folder Name="/tests/IntegrationTests/Identity.IntegrationTests/">
-    <File Path="Identity.IntegrationTestsPlaceHolder" />
-  </Folder>
-  <Folder Name="/tests/UnitTests/" />
-  <Folder Name="/tests/UnitTests/Identity.UnitTests/">
-    <File Path="Identity.UnitTestsPlaceHolder" />
+  <Folder Name="/tests/Common/">
+    <Project Path="tests/Common/CloudDrive.Common.UnitTests/CloudDrive.Common.UnitTests.csproj" />
   </Folder>
 </Solution>
