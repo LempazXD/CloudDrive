@@ -42,19 +42,17 @@ public static class ResultExtensions
 		public Result<TOut> Bind<TOut>(
 			Func<T, Result<TOut>> func)
 		{
-			if (result.IsFailure)
-				return Result<TOut>.Failure(result.Error);
-
-			return func(result.Value);
+			return result.IsFailure
+				? Result<TOut>.Failure(result.Error)
+					: func(result.Value);
 		}
 
 		public async Task<Result<TOut>> Bind<TOut>(
 			Func<T, Task<Result<TOut>>> func)
 		{
-			if (result.IsFailure)
-				return Result<TOut>.Failure(result.Error);
-
-			return await func(result.Value);
+			return result.IsFailure
+				? Result<TOut>.Failure(result.Error)
+				:  await func(result.Value);
 		}
 
 		// Выполняет побочное действие в случае успеха (логи, события и т.д.)
@@ -62,7 +60,6 @@ public static class ResultExtensions
 		{
 			if (result.IsSuccess)
 				action(result.Value);
-
 			return result;
 		}
 
@@ -70,7 +67,6 @@ public static class ResultExtensions
 		{
 			if (result.IsSuccess)
 				await func();
-
 			return result;
 		}
 
@@ -89,11 +85,10 @@ public static class ResultExtensions
 	{
 		public async Task<Result<T>> Tap(Func<Task> func)
 		{
-			Result<T> result = await resultTask;
+			var result = await resultTask;
 
 			if (result.IsSuccess)
 				await func();
-
 			return result;
 		}
 	}

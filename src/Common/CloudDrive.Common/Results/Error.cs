@@ -46,7 +46,7 @@ public sealed record Error
 		new(code, description, ErrorType.Forbidden);
 
 	public static Error Unexpected(string description = "An unexpected error occurred") =>
-		new Error("General.Unexpected", description, ErrorType.Unexpected);
+		new("General.Unexpected", description, ErrorType.Unexpected);
 }
 
 public enum ErrorType

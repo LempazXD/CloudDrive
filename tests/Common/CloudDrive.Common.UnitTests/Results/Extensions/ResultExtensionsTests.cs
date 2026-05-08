@@ -55,9 +55,9 @@ public class ResultExtensionsTests
 	[Fact]
 	public void TapShouldExecuteActionOnlyOnSuccess()
 	{
-		bool wasCalled = false;
+		var wasCalled = false;
 		var result = Result<int>.Failure(_testError);
-		result.Tap(x => wasCalled = true);
+		result.Tap(_ => wasCalled = true);
 
 		wasCalled.Should().BeFalse();
 		result.IsFailure.Should().BeTrue();
@@ -67,7 +67,7 @@ public class ResultExtensionsTests
 	public void MatchShouldReturnSuccessPathWhenResultIsSuccess()
 	{
 		var result = Result<string>.Success("ok");
-		string output = result.Match(
+		var output = result.Match(
 			onSuccess: val => "Success: " + val,
 			onFailure: err => "Error: " + err.Code
 		);
@@ -79,7 +79,7 @@ public class ResultExtensionsTests
 	public async Task TapTaskExtensionShouldAwaitAndExecuteWhenSuccess()
 	{
 		var task = Task.FromResult(Result<int>.Success(1));
-		bool sideEffectDone = false;
+		var sideEffectDone = false;
 
 		await task.Tap(() =>
 		{

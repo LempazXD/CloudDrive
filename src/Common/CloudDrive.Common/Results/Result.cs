@@ -21,27 +21,25 @@ public class Result
 	public static Result Success() => new(true, Error.None);
 	public static Result Failure(Error error) => new(false, error);
 
-
 	public static implicit operator Result(Error error) => Failure(error);
 }
 
 public class Result<TValue> : Result
 {
-	private readonly TValue? _value;
 	public TValue Value => IsSuccess
-		? _value!
+		? field!
 		: throw new InvalidOperationException("Cannot access Value of a failed result");
 
-	internal Result(TValue value)
+	private Result(TValue value)
 		: base(true, Error.None)
 	{
-		_value = value;
+		Value = value;
 	}
 
-	internal Result(Error error)
+	private Result(Error error)
 		: base(false, error)
 	{
-		_value = default;
+		Value = default;
 	}
 
 	public static Result<TValue> Success(TValue value) => new(value);

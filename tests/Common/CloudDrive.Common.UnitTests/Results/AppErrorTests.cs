@@ -53,7 +53,7 @@ public class AppErrorTests
 		{ () => Error.Validation("X.Validation", "msg"),      ErrorType.Validation   },
 		{ () => Error.Conflict("X.Conflict", "msg"),          ErrorType.Conflict     },
 		{ () => Error.Unauthorized("X.Unauthorized", "msg"),  ErrorType.Unauthorized },
-		{ () => Error.Forbidden("X.Forbidden", "msg"),        ErrorType.Forbidden    },
+		{ () => Error.Forbidden("X.Forbidden", "msg"),        ErrorType.Forbidden    }
 	};
 
 	[Theory]

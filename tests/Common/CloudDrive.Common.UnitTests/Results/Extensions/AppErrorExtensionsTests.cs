@@ -36,7 +36,7 @@ public class AppErrorExtensionsTests
 	{
 		{ Error.Conflict("Files.File.AlreadyExists", "File already exists"),  StatusCodes.Status409Conflict },
 		{ Error.Unauthorized("Auth.Token.Expired", "Token expired"),          StatusCodes.Status401Unauthorized },
-		{ Error.Forbidden("Files.File.NoAccess", "Access denied"),            StatusCodes.Status403Forbidden },
+		{ Error.Forbidden("Files.File.NoAccess", "Access denied"),            StatusCodes.Status403Forbidden }
 	};
 
 	[Theory]
