@@ -1,0 +1,13 @@
+root = true
+
+# All files
+[*]
+indent_style = tab
+
+[*.cs]
+# ; для namespace при создании
+csharp_style_namespace_declarations = file_scoped:suggestion
+
+# Xml files
+[*.xml]
+indent_size = 2

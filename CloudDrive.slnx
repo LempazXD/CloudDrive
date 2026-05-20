@@ -1,1 +1,12 @@
-<Solution />
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Bootstrapper/" />
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Shared/" />
+  <Folder Name="/tests/" />
+</Solution>
