@@ -5,8 +5,13 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/src/" />
-  <Folder Name="/src/Bootstrapper/" />
+  <Folder Name="/src/Bootstrapper/">
+    <Project Path="src/Bootstrapper/CloudDrive.Api/CloudDrive.Api.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/" />
-  <Folder Name="/src/Shared/" />
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/CloudDrive.Shared.Api/CloudDrive.Shared.Api.csproj" />
+    <Project Path="src/Shared/CloudDrive.Shared.Kernel/CloudDrive.Shared.Kernel.csproj" />
+  </Folder>
   <Folder Name="/tests/" />
 </Solution>
