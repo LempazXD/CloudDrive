@@ -1,3 +1,4 @@
+using CloudDrive.Shared.Api.ExceptionHandling;
 using CloudDrive.Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -16,10 +17,9 @@ public static class ResultExtensions
 			return TypedResults.Problem(
 				statusCode: ErrorTypeMapper.ToStatusCode(result.Error!.Type),
 				title: ErrorTypeMapper.ToTitle(result.Error.Type),
-				detail: "", // TODO: Заменить на локализованную ошибку для пользователя
 				extensions: new Dictionary<string, object?>
 				{
-					["errorCode"] = result.Error.Code
+					[ProblemDetailsLocalizer.ErrorCodeKey] = result.Error.Code
 				});
 		}
 
