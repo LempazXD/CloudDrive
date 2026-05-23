@@ -16,15 +16,15 @@ public record Error
 	public ErrorType Type { get; }
 
 
-	public static Error NotFound(string code, string description) => new(code, ErrorType.NotFound);
+	public static Error NotFound(string code) => new(code, ErrorType.NotFound);
 
-	public static Error Validation(string code, string description) => new(code, ErrorType.Validation);
+	public static Error Validation(string code) => new(code, ErrorType.Validation);
 
-	public static Error Conflict(string code, string description) => new(code, ErrorType.Conflict);
+	public static Error Conflict(string code) => new(code, ErrorType.Conflict);
 
-	public static Error Unauthorized(string code, string description) => new(code, ErrorType.Unauthorized);
+	public static Error Unauthorized(string code) => new(code, ErrorType.Unauthorized);
 
-	public static Error Forbidden(string code, string description) => new(code, ErrorType.Forbidden);
+	public static Error Forbidden(string code) => new(code, ErrorType.Forbidden);
 }
 
 public enum ErrorType

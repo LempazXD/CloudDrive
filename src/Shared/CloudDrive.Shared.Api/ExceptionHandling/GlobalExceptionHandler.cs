@@ -38,8 +38,7 @@ public sealed class GlobalExceptionHandler(
 			{
 				Status = StatusCodes.Status500InternalServerError,
 				Title = "Internal server error",
-				Detail = "An unexpected error occurred",
-				// TODO: Заменить на локализованную ошибку для пользователя
+				Detail = "An unexpected error occurred"
 			}
 		});
 	}

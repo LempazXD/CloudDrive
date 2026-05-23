@@ -1,9 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-
-	</PropertyGroup>
-
 	<ItemGroup>
 		<ProjectReference Include="..\CloudDrive.Shared.Kernel\CloudDrive.Shared.Kernel.csproj"/>
 	</ItemGroup>

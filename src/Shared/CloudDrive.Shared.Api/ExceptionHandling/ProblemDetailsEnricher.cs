@@ -11,16 +11,14 @@ public static class ProblemDetailsEnricher
 
 		context.ProblemDetails.Type = null;
 
-		context.ProblemDetails.Instance =
-			$"{httpContext.Request.Method} {httpContext.Request.Path}";
+		context.ProblemDetails.Instance = httpContext.Request.Path;
 
-		context.ProblemDetails.Extensions["traceId"] =
-			Activity.Current?.Id ?? httpContext.TraceIdentifier;
+		context.ProblemDetails.Extensions["method"] = httpContext.Request.Method;
 
-		context.ProblemDetails.Extensions["requestId"] =
-			httpContext.TraceIdentifier;
+		context.ProblemDetails.Extensions["traceId"] = Activity.Current?.TraceId.ToString();
 
-		context.ProblemDetails.Extensions["timestamp"] =
-			DateTimeOffset.UtcNow.ToString("O");
+		context.ProblemDetails.Extensions["requestId"] = httpContext.TraceIdentifier;
+
+		context.ProblemDetails.Extensions["timestamp"] = DateTimeOffset.UtcNow.ToString("O");
 	}
 }

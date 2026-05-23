@@ -4,10 +4,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
 	.AddProblemDetailsConfiguration()
-	.AddGlobalExceptionHandling();
+	.AddGlobalExceptionHandling()
+	.AddRequestLocalizationConfiguration();
 
 var app = builder.Build();
 
+app.UseRequestLocalizationConfiguration();
 app.UseGlobalExceptionHandling();
 
 app.Run();
