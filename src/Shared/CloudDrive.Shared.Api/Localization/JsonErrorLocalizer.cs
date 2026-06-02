@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -19,6 +20,8 @@ public sealed class JsonErrorLocalizer : IErrorLocalizer
 		_translations = LoadAll(path);
 	}
 
+	[SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates",
+		Justification = "Cold path: warnings fire only on a missing localization key (misconfiguration), not per request.")]
 	public string Localize(string errorCode, string culture)
 	{
 		if (_translations.TryGetValue(culture, out var dict) && dict.TryGetValue(errorCode, out var msg))
