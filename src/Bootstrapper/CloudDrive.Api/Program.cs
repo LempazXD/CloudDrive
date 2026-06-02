@@ -5,7 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services
 	.AddSingleton(TimeProvider.System)
-	.AddGuidProvider()
+	.AddSingleton<IGuidProvider, GuidProvider>()
 	.AddProblemDetailsConfiguration()
 	.AddGlobalExceptionHandling()
 	.AddRequestLocalizationConfiguration();
