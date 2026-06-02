@@ -9,11 +9,15 @@
 		<TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release'">true</TreatWarningsAsErrors>
 		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
+		<!--
+			CA1716: "Shared" is a reserved keyword in VB; it is an intentional, fixed part of our
+			        modular-monolith namespace scheme (CloudDrive.Shared.*) and we don't target VB consumers.
+			CA1848 (LoggerMessage) is intentionally left enabled so hot-path logging still gets flagged;
+			cold-path call sites suppress it locally via [SuppressMessage] with a justification.
+		-->
+		<NoWarn>$(NoWarn);CA1716</NoWarn>
+
 		<InvariantGlobalization>false</InvariantGlobalization>
 		<GenerateDocumentationFile>false</GenerateDocumentationFile>
 	</PropertyGroup>
-
-	<ItemGroup>
-
-	</ItemGroup>
 </Project>
