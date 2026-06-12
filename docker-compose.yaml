@@ -1,0 +1,8 @@
+services:
+  clouddrive.api:
+    image: clouddrive.api
+    build:
+      context: .
+      dockerfile: src/Bootstrapper/CloudDrive.Api/Dockerfile
+    ports:
+      - "8080:8080"
