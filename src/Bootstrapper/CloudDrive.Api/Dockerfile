@@ -1,0 +1,24 @@
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 8080
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ARG BUILD_CONFIGURATION=Release
+WORKDIR /src
+COPY ["Directory.Build.props", "Directory.Packages.props", "./"]
+COPY ["src/Bootstrapper/CloudDrive.Api/CloudDrive.Api.csproj", "src/Bootstrapper/CloudDrive.Api/"]
+COPY ["src/Shared/CloudDrive.Shared.Api/CloudDrive.Shared.Api.csproj", "src/Shared/CloudDrive.Shared.Api/"]
+COPY ["src/Shared/CloudDrive.Shared.Kernel/CloudDrive.Shared.Kernel.csproj", "src/Shared/CloudDrive.Shared.Kernel/"]
+RUN dotnet restore "src/Bootstrapper/CloudDrive.Api/CloudDrive.Api.csproj"
+COPY . .
+WORKDIR "/src/src/Bootstrapper/CloudDrive.Api"
+
+FROM build AS publish
+ARG BUILD_CONFIGURATION=Release
+RUN dotnet publish "./CloudDrive.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "CloudDrive.Api.dll"]
