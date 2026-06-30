@@ -362,3 +362,9 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /.idea/.idea.CloudDrive/.idea
+
+# Local environment secrets (.env.example is committed as the template)
+.env
+
+# Docker bind-mount volumes (Postgres data, etc.)
+.containers/

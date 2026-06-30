@@ -10,6 +10,10 @@ builder.Services
 	.AddGlobalExceptionHandling()
 	.AddRequestLocalizationConfiguration();
 
+builder.Services.AddNpgsqlDataSource(
+	builder.Configuration.GetConnectionString("CloudDrive")
+		?? throw new InvalidOperationException("Connection string 'CloudDrive' is not configured."));
+
 var app = builder.Build();
 
 app.UseRequestLocalizationConfiguration();

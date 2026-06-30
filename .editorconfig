@@ -3,6 +3,7 @@ root = true
 # All files
 [*]
 indent_style = tab
+charset = utf-8
 
 [*.cs]
 # ; для namespace при создании

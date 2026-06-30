@@ -1,8 +1,33 @@
 services:
-  clouddrive.api:
-    image: clouddrive.api
-    build:
-      context: .
-      dockerfile: src/Bootstrapper/CloudDrive.Api/Dockerfile
-    ports:
-      - "8080:8080"
+    clouddrive.api:
+        image: ${DOCKER_REGISTRY-}clouddriveapi
+        container_name: clouddrive.api
+        build:
+            context: .
+            dockerfile: src/Bootstrapper/CloudDrive.Api/Dockerfile
+        ports:
+            - "8080:8080"
+        environment:
+            - ConnectionStrings__CloudDrive=${ConnectionStrings__CloudDrive}
+        depends_on:
+            clouddrive.database:
+                condition: service_healthy
+        restart: unless-stopped
+    
+    clouddrive.database:
+        image: postgres:17
+        container_name: clouddrive.database
+        environment:
+            - POSTGRES_DB=${DB_DATABASE}
+            - POSTGRES_USER=${DB_USER}
+            - POSTGRES_PASSWORD=${DB_PASSWORD}
+        ports:
+            - "5433:5432"
+        volumes:
+            - ./.containers/database:/var/lib/postgresql/data
+        healthcheck:
+            test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s

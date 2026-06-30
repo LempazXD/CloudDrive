@@ -1,5 +1,8 @@
-﻿<Project>
+<Project>
 	<PropertyGroup>
 		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
 	</PropertyGroup>
+	<ItemGroup>
+		<PackageVersion Include="Npgsql.DependencyInjection" Version="10.0.3" />
+	</ItemGroup>
 </Project>
