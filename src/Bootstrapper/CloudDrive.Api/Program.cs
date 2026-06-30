@@ -18,8 +18,6 @@ builder.Services.AddNpgsqlDataSource(
 	builder.Configuration.GetConnectionString("CloudDrive")
 		?? throw new InvalidOperationException("Connection string 'CloudDrive' is not configured."));
 
-// Readiness probes are tagged "ready"; liveness runs no checks (process-alive only),
-// so a degraded dependency never triggers a restart loop.
 builder.Services
 	.AddHealthChecks()
 	.AddNpgSql(
@@ -41,7 +39,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 if (app.Environment.IsDevelopment())
 {
 	app.MapOpenApi();
-	app.MapScalarApiReference();  // localhost:5166/scalar 
+	app.MapScalarApiReference();  // localhost:5166/scalar
 }
 
 app.Run();
