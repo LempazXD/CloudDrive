@@ -1,5 +1,7 @@
 using CloudDrive.Shared.Api.Extensions;
 using CloudDrive.Shared.Kernel.Guids;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Npgsql;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,10 +18,25 @@ builder.Services.AddNpgsqlDataSource(
 	builder.Configuration.GetConnectionString("CloudDrive")
 		?? throw new InvalidOperationException("Connection string 'CloudDrive' is not configured."));
 
+// Readiness probes are tagged "ready"; liveness runs no checks (process-alive only),
+// so a degraded dependency never triggers a restart loop.
+builder.Services
+	.AddHealthChecks()
+	.AddNpgSql(
+		sp => sp.GetRequiredService<NpgsqlDataSource>(),
+		name: "postgresql",
+		tags: ["ready"]);
+
 var app = builder.Build();
 
 app.UseRequestLocalizationConfiguration();
 app.UseGlobalExceptionHandling();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+	Predicate = static check => check.Tags.Contains("ready"),
+});
 
 if (app.Environment.IsDevelopment())
 {
