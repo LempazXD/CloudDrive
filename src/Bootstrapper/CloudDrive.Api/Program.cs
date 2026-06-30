@@ -1,5 +1,6 @@
 using CloudDrive.Shared.Api.Extensions;
 using CloudDrive.Shared.Kernel.Guids;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,7 +9,8 @@ builder.Services
 	.AddSingleton<IGuidProvider, GuidProvider>()
 	.AddProblemDetailsConfiguration()
 	.AddGlobalExceptionHandling()
-	.AddRequestLocalizationConfiguration();
+	.AddRequestLocalizationConfiguration()
+	.AddOpenApi();
 
 builder.Services.AddNpgsqlDataSource(
 	builder.Configuration.GetConnectionString("CloudDrive")
@@ -18,5 +20,11 @@ var app = builder.Build();
 
 app.UseRequestLocalizationConfiguration();
 app.UseGlobalExceptionHandling();
+
+if (app.Environment.IsDevelopment())
+{
+	app.MapOpenApi();
+	app.MapScalarApiReference();  // localhost:5166/scalar 
+}
 
 app.Run();
