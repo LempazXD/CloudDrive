@@ -21,7 +21,8 @@ public sealed class JsonErrorLocalizer : IErrorLocalizer
 	}
 
 	[SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates",
-		Justification = "Cold path: warnings fire only on a missing localization key (misconfiguration), not per request.")]
+		Justification =
+			"Cold path: warnings fire only on a missing localization key (misconfiguration), not per request.")]
 	public string Localize(string errorCode, string culture)
 	{
 		if (_translations.TryGetValue(culture, out var dict) && dict.TryGetValue(errorCode, out var msg))
@@ -56,8 +57,8 @@ public sealed class JsonErrorLocalizer : IErrorLocalizer
 
 			using var stream = File.OpenRead(file);
 			var entries = JsonSerializer.Deserialize<Dictionary<string, string>>(stream)
-				?? throw new InvalidOperationException(
-					$"Localization file '{file}' contains 'null' instead of a JSON object.");
+			              ?? throw new InvalidOperationException(
+				              $"Localization file '{file}' contains 'null' instead of a JSON object.");
 
 			result[culture] = entries.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 		}
