@@ -8,6 +8,7 @@ services:
         ports:
             - "8080:8080"
         environment:
+            - ASPNETCORE_ENVIRONMENT=Development
             - ConnectionStrings__CloudDrive=${ConnectionStrings__CloudDrive}
         depends_on:
             clouddrive.database:
