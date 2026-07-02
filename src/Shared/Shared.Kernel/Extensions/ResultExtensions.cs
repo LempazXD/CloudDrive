@@ -1,6 +1,6 @@
-using CloudDrive.Shared.Kernel.Results;
+using Shared.Kernel.Results;
 
-namespace CloudDrive.Shared.Kernel.Extensions;
+namespace Shared.Kernel.Extensions;
 
 public static class ResultExtensions
 {

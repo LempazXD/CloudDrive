@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace CloudDrive.Shared.Kernel.Guids;
+namespace Shared.Kernel.Guids;
 
 /// <summary>
 /// Default <see cref="IGuidProvider"/> implementation. Do not construct directly —

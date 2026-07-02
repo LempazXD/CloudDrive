@@ -1,4 +1,4 @@
-namespace CloudDrive.Shared.Api.Localization;
+namespace Shared.Api.Localization;
 
 public interface IErrorLocalizer
 {

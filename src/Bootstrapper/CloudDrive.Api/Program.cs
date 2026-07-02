@@ -1,5 +1,5 @@
-using CloudDrive.Shared.Api.Extensions;
-using CloudDrive.Shared.Kernel.Guids;
+using Shared.Api.Extensions;
+using Shared.Kernel.Guids;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Npgsql;
 using Scalar.AspNetCore;

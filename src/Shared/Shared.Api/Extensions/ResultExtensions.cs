@@ -1,9 +1,9 @@
-using CloudDrive.Shared.Api.ExceptionHandling;
-using CloudDrive.Shared.Kernel.Results;
+using Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Shared.Api.ExceptionHandling;
 
-namespace CloudDrive.Shared.Api.Extensions;
+namespace Shared.Api.Extensions;
 
 public static class ResultExtensions
 {

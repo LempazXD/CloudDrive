@@ -1,4 +1,4 @@
-namespace CloudDrive.Shared.Kernel.Guids;
+namespace Shared.Kernel.Guids;
 
 public interface IGuidProvider
 {

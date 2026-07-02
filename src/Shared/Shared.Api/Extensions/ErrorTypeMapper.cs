@@ -1,7 +1,7 @@
-using CloudDrive.Shared.Kernel.Results;
+using Shared.Kernel.Results;
 using Microsoft.AspNetCore.Http;
 
-namespace CloudDrive.Shared.Api.Extensions;
+namespace Shared.Api.Extensions;
 
 internal static class ErrorTypeMapper
 {

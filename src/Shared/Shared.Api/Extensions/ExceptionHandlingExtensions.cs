@@ -1,8 +1,8 @@
-using CloudDrive.Shared.Api.ExceptionHandling;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Shared.Api.ExceptionHandling;
 
-namespace CloudDrive.Shared.Api.Extensions;
+namespace Shared.Api.Extensions;
 
 public static class ExceptionHandlingExtensions
 {

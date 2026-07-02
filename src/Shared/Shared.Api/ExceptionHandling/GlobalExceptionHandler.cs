@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-namespace CloudDrive.Shared.Api.ExceptionHandling;
+namespace Shared.Api.ExceptionHandling;
 
 public sealed class GlobalExceptionHandler(
 	IProblemDetailsService problemDetailsService,

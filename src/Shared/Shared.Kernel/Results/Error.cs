@@ -1,4 +1,4 @@
-namespace CloudDrive.Shared.Kernel.Results;
+namespace Shared.Kernel.Results;
 
 public record Error
 {

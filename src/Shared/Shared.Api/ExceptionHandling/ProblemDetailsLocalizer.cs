@@ -1,9 +1,9 @@
 using System.Globalization;
-using CloudDrive.Shared.Api.Localization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Shared.Api.Localization;
 
-namespace CloudDrive.Shared.Api.ExceptionHandling;
+namespace Shared.Api.ExceptionHandling;
 
 public static class ProblemDetailsLocalizer
 {

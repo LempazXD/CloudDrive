@@ -1,8 +1,8 @@
-using CloudDrive.Shared.Api.ExceptionHandling;
-using CloudDrive.Shared.Api.Localization;
 using Microsoft.Extensions.DependencyInjection;
+using Shared.Api.ExceptionHandling;
+using Shared.Api.Localization;
 
-namespace CloudDrive.Shared.Api.Extensions;
+namespace Shared.Api.Extensions;
 
 public static class ProblemDetailsExtensions
 {

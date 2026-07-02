@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<ItemGroup>
-		<ProjectReference Include="..\CloudDrive.Shared.Kernel\CloudDrive.Shared.Kernel.csproj"/>
+		<ProjectReference Include="..\Shared.Kernel\Shared.Kernel.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

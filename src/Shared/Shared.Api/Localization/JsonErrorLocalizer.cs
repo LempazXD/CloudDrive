@@ -4,7 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace CloudDrive.Shared.Api.Localization;
+namespace Shared.Api.Localization;
 
 public sealed class JsonErrorLocalizer : IErrorLocalizer
 {

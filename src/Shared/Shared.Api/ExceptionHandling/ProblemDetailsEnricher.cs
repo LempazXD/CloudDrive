@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace CloudDrive.Shared.Api.ExceptionHandling;
+namespace Shared.Api.ExceptionHandling;
 
 public static class ProblemDetailsEnricher
 {
