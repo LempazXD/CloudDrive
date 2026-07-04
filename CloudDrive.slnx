@@ -11,8 +11,8 @@
 	</Folder>
 	<Folder Name="/src/Modules/" />
 	<Folder Name="/src/Shared/">
-		<Project Path="src/Shared/CloudDrive.Shared.Api/CloudDrive.Shared.Api.csproj" />
-		<Project Path="src/Shared/CloudDrive.Shared.Kernel/CloudDrive.Shared.Kernel.csproj" />
+		<Project Path="src/Shared/Shared.Api/Shared.Api.csproj" />
+		<Project Path="src/Shared/Shared.Kernel/Shared.Kernel.csproj" />
 	</Folder>
 	<Folder Name="/tests/" />
 </Solution>

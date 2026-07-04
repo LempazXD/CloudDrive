@@ -6,7 +6,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\Shared\CloudDrive.Shared.Api\CloudDrive.Shared.Api.csproj"/>
+		<ProjectReference Include="..\..\Shared\Shared.Api\Shared.Api.csproj"/>
 	</ItemGroup>
 
 	<ItemGroup>
