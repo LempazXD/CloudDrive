@@ -10,7 +10,7 @@ public record Error
 		Type = type;
 	}
 
-	/// <summary> Convention: "Module.Entity.Reason" </summary>
+	/// <summary> Соглашение: "Module.Entity.Reason" </summary>
 	public string Code { get; }
 
 	public ErrorType Type { get; }

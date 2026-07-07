@@ -3,8 +3,8 @@ using System.ComponentModel;
 namespace Shared.Kernel.Guids;
 
 /// <summary>
-/// Default <see cref="IGuidProvider"/> implementation. Do not construct directly —
-/// resolve <see cref="IGuidProvider"/> from DI. Public only so the composition root can register it.
+/// Реализация <see cref="IGuidProvider"/> по умолчанию. Не создавайте напрямую —
+/// получайте <see cref="IGuidProvider"/> через DI. Public только для того, чтобы composition root мог его зарегистрировать.
 /// </summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
 public sealed class GuidProvider(TimeProvider timeProvider) : IGuidProvider
