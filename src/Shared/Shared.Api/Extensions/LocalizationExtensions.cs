@@ -24,7 +24,7 @@ public static class LocalizationExtensions
 		return services;
 	}
 
-	// Должен идти перед UseExceptionHandler
+	/// <summary> Должен идти перед UseExceptionHandler. </summary>
 	public static WebApplication UseRequestLocalizationConfiguration(this WebApplication app)
 	{
 		app.UseRequestLocalization();
