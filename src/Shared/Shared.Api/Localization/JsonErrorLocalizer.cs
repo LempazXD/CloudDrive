@@ -47,7 +47,8 @@ public sealed class JsonErrorLocalizer : IErrorLocalizer
 	private static FrozenDictionary<string, FrozenDictionary<string, string>> LoadAll(string directory)
 	{
 		if (!Directory.Exists(directory))
-			return FrozenDictionary<string, FrozenDictionary<string, string>>.Empty;
+			throw new InvalidOperationException(
+				$"Localization directory '{directory}' was not found.");
 
 		var result = new Dictionary<string, FrozenDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
