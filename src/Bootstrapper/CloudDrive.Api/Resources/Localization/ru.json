@@ -1,3 +1,9 @@
 {
 	
+	"Http.Title.Validation": "Ошибка валидации",
+	"Http.Title.NotFound": "Ресурс не найден",
+	"Http.Title.Conflict": "Конфликт",
+	"Http.Title.Unauthorized": "Не авторизован",
+	"Http.Title.Forbidden": "Доступ запрещён",
+	"Http.Title.LockedOut": "Заблокировано"
 }

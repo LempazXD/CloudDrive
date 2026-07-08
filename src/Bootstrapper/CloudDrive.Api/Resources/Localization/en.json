@@ -1,3 +1,9 @@
 {
 	
+	"Http.Title.Validation": "Validation failed",
+	"Http.Title.NotFound": "Resource not found",
+	"Http.Title.Conflict": "Conflict",
+	"Http.Title.Unauthorized": "Unauthorized",
+	"Http.Title.Forbidden": "Forbidden",
+	"Http.Title.LockedOut": "Locked out"
 }
