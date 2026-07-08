@@ -16,6 +16,7 @@ public static class ProblemDetailsExtensions
 			{
 				ProblemDetailsEnricher.Enrich(context);
 				ProblemDetailsLocalizer.Localize(context);
+				RetryAfterEnricher.Enrich(context);
 			};
 		});
 
