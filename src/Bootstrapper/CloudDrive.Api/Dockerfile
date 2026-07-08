@@ -10,6 +10,8 @@ COPY ["Directory.Build.props", "Directory.Packages.props", "./"]
 COPY ["src/Bootstrapper/CloudDrive.Api/CloudDrive.Api.csproj", "src/Bootstrapper/CloudDrive.Api/"]
 COPY ["src/Shared/CloudDrive.Shared.Api/CloudDrive.Shared.Api.csproj", "src/Shared/CloudDrive.Shared.Api/"]
 COPY ["src/Shared/CloudDrive.Shared.Kernel/CloudDrive.Shared.Kernel.csproj", "src/Shared/CloudDrive.Shared.Kernel/"]
+COPY ["src/Shared/Shared.Api/Shared.Api.csproj", "src/Shared/Shared.Api/"]
+COPY ["src/Shared/Shared.Kernel/Shared.Kernel.csproj", "src/Shared/Shared.Kernel/"]
 RUN dotnet restore "src/Bootstrapper/CloudDrive.Api/CloudDrive.Api.csproj"
 COPY . .
 WORKDIR "/src/src/Bootstrapper/CloudDrive.Api"
