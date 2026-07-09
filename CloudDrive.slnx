@@ -9,7 +9,12 @@
 	<Folder Name="/src/Bootstrapper/">
 		<Project Path="src/Bootstrapper/CloudDrive.Api/CloudDrive.Api.csproj" />
 	</Folder>
-	<Folder Name="/src/Modules/" />
+	<Folder Name="/src/Modules/Auth/">
+		<Project Path="src/Modules/Auth/Auth.Contracts/Auth.Contracts.csproj" />
+		<Project Path="src/Modules/Auth/Auth.Core/Auth.Core.csproj" />
+		<Project Path="src/Modules/Auth/Auth.Infrastructure/Auth.Infrastructure.csproj" />
+		<Project Path="src/Modules/Auth/Auth.Endpoints/Auth.Endpoints.csproj" />
+	</Folder>
 	<Folder Name="/src/Shared/">
 		<Project Path="src/Shared/Shared.Api/Shared.Api.csproj" />
 		<Project Path="src/Shared/Shared.Kernel/Shared.Kernel.csproj" />
