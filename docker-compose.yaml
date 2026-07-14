@@ -10,6 +10,7 @@ services:
         environment:
             - ASPNETCORE_ENVIRONMENT=Development
             - ConnectionStrings__CloudDrive=${ConnectionStrings__CloudDrive}
+            - Jwt__SigningKey=${Jwt__SigningKey}
         depends_on:
             clouddrive.database:
                 condition: service_healthy

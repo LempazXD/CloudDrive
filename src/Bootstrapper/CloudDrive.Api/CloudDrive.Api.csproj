@@ -7,11 +7,17 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Shared\Shared.Api\Shared.Api.csproj"/>
+		<ProjectReference Include="..\..\Modules\Auth\Auth.Infrastructure\Auth.Infrastructure.csproj"/>
+		<ProjectReference Include="..\..\Modules\Auth\Auth.Endpoints\Auth.Endpoints.csproj"/>
 	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="AspNetCore.HealthChecks.NpgSql"/>
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi"/>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
 		<PackageReference Include="Microsoft.OpenApi"/>
 		<PackageReference Include="Npgsql.DependencyInjection"/>
 		<PackageReference Include="Scalar.AspNetCore"/>
