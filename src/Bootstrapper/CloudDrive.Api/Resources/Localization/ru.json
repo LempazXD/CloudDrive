@@ -1,9 +1,20 @@
 {
-	
 	"Http.Title.Validation": "Ошибка валидации",
 	"Http.Title.NotFound": "Ресурс не найден",
 	"Http.Title.Conflict": "Конфликт",
 	"Http.Title.Unauthorized": "Не авторизован",
 	"Http.Title.Forbidden": "Доступ запрещён",
-	"Http.Title.LockedOut": "Заблокировано"
+	"Http.Title.LockedOut": "Заблокировано",
+	"Auth.User.EmailAlreadyExists": "Аккаунт с таким email уже существует.",
+	"Auth.User.UsernameAlreadyExists": "Аккаунт с таким именем пользователя уже существует.",
+	"Auth.User.WeakPassword": "Пароль не соответствует минимальным требованиям безопасности.",
+	"Auth.User.InvalidEmail": "Некорректный адрес электронной почты.",
+	"Auth.User.InvalidUsername": "Некорректное имя пользователя.",
+	"Auth.User.InvalidCredentials": "Неверное имя пользователя, email или пароль.",
+	"Auth.User.LockedOut": "Аккаунт временно заблокирован из-за слишком большого количества неудачных попыток входа. Попробуйте снова позже.",
+	"Auth.User.ConcurrencyConflict": "Аккаунт был изменён другим запросом. Пожалуйста, попробуйте снова.",
+	"Auth.User.RegistrationFailed": "Не удалось зарегистрироваться. Проверьте введённые данные и попробуйте снова.",
+	"Auth.RefreshToken.Invalid": "Недействительный refresh-токен.",
+	"Auth.RefreshToken.Expired": "Срок действия refresh-токена истёк. Пожалуйста, войдите снова.",
+	"Auth.RefreshToken.Revoked": "Refresh-токен был отозван. Пожалуйста, войдите снова."
 }

@@ -1,9 +1,20 @@
 {
-	
 	"Http.Title.Validation": "Validation failed",
 	"Http.Title.NotFound": "Resource not found",
 	"Http.Title.Conflict": "Conflict",
 	"Http.Title.Unauthorized": "Unauthorized",
 	"Http.Title.Forbidden": "Forbidden",
-	"Http.Title.LockedOut": "Locked out"
+	"Http.Title.LockedOut": "Locked out",
+	"Auth.User.EmailAlreadyExists": "An account with this email address already exists.",
+	"Auth.User.UsernameAlreadyExists": "An account with this username already exists.",
+	"Auth.User.WeakPassword": "The password does not meet the minimum security requirements.",
+	"Auth.User.InvalidEmail": "The email address is not valid.",
+	"Auth.User.InvalidUsername": "The username is not valid.",
+	"Auth.User.InvalidCredentials": "The username/email or password is incorrect.",
+	"Auth.User.LockedOut": "The account is temporarily locked due to too many failed login attempts. Please try again later.",
+	"Auth.User.ConcurrencyConflict": "The account was modified by another request. Please try again.",
+	"Auth.User.RegistrationFailed": "Registration failed. Please check your details and try again.",
+	"Auth.RefreshToken.Invalid": "The refresh token is invalid.",
+	"Auth.RefreshToken.Expired": "The refresh token has expired. Please sign in again.",
+	"Auth.RefreshToken.Revoked": "The refresh token has been revoked. Please sign in again."
 }
