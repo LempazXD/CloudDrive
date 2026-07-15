@@ -22,6 +22,7 @@ public static class AuthModuleExtensions
 	{
 		services.AddJwtOptions(configuration);
 		services.AddRateLimitingOptions(configuration);
+		services.AddIdentityConfigOptions(configuration);
 
 		services.AddOptions<RateLimiterOptions>()
 			.Configure<IOptions<RateLimitingOptions>>((rlOptions, authRateLimiting) =>
@@ -96,6 +97,21 @@ public static class AuthModuleExtensions
 			.Validate(o => o.Login.Window > TimeSpan.Zero, "RateLimiting:Login:Window must be positive.")
 			.Validate(o => o.Register.PermitLimit > 0, "RateLimiting:Register:PermitLimit must be positive.")
 			.Validate(o => o.Register.Window > TimeSpan.Zero, "RateLimiting:Register:Window must be positive.")
+			.ValidateOnStart();
+	}
+
+	// Биндим на встроенный IdentityOptions, а не свой DTO - Lockout/Password уже есть в Identity.
+	// Значения применяются не здесь: UserManager/SignInManager получают тот же IOptions<IdentityOptions>
+	// через DI и сами читают Options.Password/Options.Lockout
+	// TODO: DefaultLockoutTimeSpan - фиксированная длительность на каждую блокировку
+	private static void AddIdentityConfigOptions(this IServiceCollection services, IConfiguration configuration)
+	{
+		services.AddOptions<IdentityOptions>()
+			.Bind(configuration.GetSection("Identity"))
+			.Validate(o => o.Lockout.MaxFailedAccessAttempts > 0, "Identity:Lockout:MaxFailedAccessAttempts must be positive.")
+			.Validate(o => o.Lockout.DefaultLockoutTimeSpan > TimeSpan.Zero, "Identity:Lockout:DefaultLockoutTimeSpan must be positive.")
+			.Validate(o => o.Password.RequiredLength > 0, "Identity:Password:RequiredLength must be positive.")
+			.Validate(o => o.Password.RequiredUniqueChars > 0, "Identity:Password:RequiredUniqueChars must be positive.")
 			.ValidateOnStart();
 	}
 
