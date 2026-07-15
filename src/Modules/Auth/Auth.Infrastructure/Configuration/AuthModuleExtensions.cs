@@ -40,6 +40,7 @@ public static class AuthModuleExtensions
 			{
 				options.User.RequireUniqueEmail = true;
 			})
+			.AddRoles<IdentityRole<Guid>>()
 			.AddEntityFrameworkStores<AuthDbContext>()
 			.AddSignInManager()
 			.AddDefaultTokenProviders();
