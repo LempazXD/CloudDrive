@@ -1,9 +1,12 @@
+using System.Threading.RateLimiting;
 using Auth.Core.Application.Abstractions;
 using Auth.Infrastructure.Application;
 using Auth.Infrastructure.Identity;
 using Auth.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,14 +20,15 @@ public static class AuthModuleExtensions
 {
 	public static IServiceCollection AddAuthModule(this IServiceCollection services, IConfiguration configuration)
 	{
-		services.AddOptions<JwtOptions>()
-			.Bind(configuration.GetSection("Jwt"))
-			.Validate(o => !string.IsNullOrWhiteSpace(o.Issuer), "Jwt:Issuer is required.")
-			.Validate(o => !string.IsNullOrWhiteSpace(o.Audience), "Jwt:Audience is required.")
-			.Validate(o => IsValidSigningKey(o.SigningKey), "Jwt:SigningKey must be a Base64 string decoding to at least 32 bytes (256 bits).")
-			.Validate(o => o.AccessTokenLifetime > TimeSpan.Zero, "Jwt:AccessTokenLifetime must be positive.")
-			.Validate(o => o.RefreshTokenLifetime > TimeSpan.Zero, "Jwt:RefreshTokenLifetime must be positive.")
-			.ValidateOnStart();
+		services.AddJwtOptions(configuration);
+		services.AddRateLimitingOptions(configuration);
+
+		services.AddOptions<RateLimiterOptions>()
+			.Configure<IOptions<RateLimitingOptions>>((rlOptions, authRateLimiting) =>
+			{
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Login, authRateLimiting.Value.Login);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Register, authRateLimiting.Value.Register);
+			});
 
 		services.AddDbContext<AuthDbContext>((sp, options) =>
 			options.UseNpgsql(
@@ -71,6 +75,38 @@ public static class AuthModuleExtensions
 		await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database.MigrateAsync();
 	}
 
+	private static void AddJwtOptions(this IServiceCollection services, IConfiguration configuration)
+	{
+		services.AddOptions<JwtOptions>()
+			.Bind(configuration.GetSection("Jwt"))
+			.Validate(o => !string.IsNullOrWhiteSpace(o.Issuer), "Jwt:Issuer is required.")
+			.Validate(o => !string.IsNullOrWhiteSpace(o.Audience), "Jwt:Audience is required.")
+			.Validate(o => IsValidSigningKey(o.SigningKey), "Jwt:SigningKey must be a Base64 string decoding to at least 32 bytes (256 bits).")
+			.Validate(o => o.AccessTokenLifetime > TimeSpan.Zero, "Jwt:AccessTokenLifetime must be positive.")
+			.Validate(o => o.RefreshTokenLifetime > TimeSpan.Zero, "Jwt:RefreshTokenLifetime must be positive.")
+			.ValidateOnStart();
+	}
+
+	private static void AddRateLimitingOptions(this IServiceCollection services, IConfiguration configuration)
+	{
+		services.AddOptions<RateLimitingOptions>()
+			.Bind(configuration.GetSection("RateLimiting"))
+			.Validate(o => o.Login.PermitLimit > 0, "RateLimiting:Login:PermitLimit must be positive.")
+			.Validate(o => o.Login.Window > TimeSpan.Zero, "RateLimiting:Login:Window must be positive.")
+			.Validate(o => o.Register.PermitLimit > 0, "RateLimiting:Register:PermitLimit must be positive.")
+			.Validate(o => o.Register.Window > TimeSpan.Zero, "RateLimiting:Register:Window must be positive.")
+			.ValidateOnStart();
+	}
+
+	private static void AddFixedWindowPolicy(RateLimiterOptions rlOptions, string policyName, RateLimitRuleOptions rule) =>
+		rlOptions.AddPolicy(policyName, httpContext =>
+			RateLimitPartition.GetFixedWindowLimiter(GetClientIp(httpContext), _ => new FixedWindowRateLimiterOptions
+			{
+				PermitLimit = rule.PermitLimit,
+				Window = rule.Window,
+				QueueLimit = 0
+			}));
+
 	private static bool IsValidSigningKey(string signingKey)
 	{
 		if (string.IsNullOrWhiteSpace(signingKey))
@@ -85,4 +121,10 @@ public static class AuthModuleExtensions
 			return false;
 		}
 	}
+
+	// TODO: RemoteIpAddress корректен, только пока API открыт наружу напрямую (как сейчас).
+	// Если перед ним появится reverse proxy/LB, сюда будет прилетать IP прокси у всех запросов
+	// подряд - все клиенты схлопнутся в один rate-limit bucket.
+	private static string GetClientIp(HttpContext httpContext) =>
+		httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

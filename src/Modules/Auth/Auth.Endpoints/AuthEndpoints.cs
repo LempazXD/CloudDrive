@@ -3,6 +3,7 @@ using Auth.Endpoints.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Shared.Api.Extensions;
 
@@ -14,8 +15,8 @@ public static class AuthEndpoints
 	{
 		var group = app.MapGroup("/api/auth").WithTags("Auth");
 
-		group.MapPost("/register", RegisterAsync);
-		group.MapPost("/login", LoginAsync);
+		group.MapPost("/register", RegisterAsync).RequireRateLimiting(AuthRateLimitPolicies.Register);
+		group.MapPost("/login", LoginAsync).RequireRateLimiting(AuthRateLimitPolicies.Login);
 		group.MapPost("/refresh", RefreshAsync);
 		group.MapPost("/logout", LogoutAsync);
 

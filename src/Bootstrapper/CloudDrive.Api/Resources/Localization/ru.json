@@ -5,6 +5,8 @@
 	"Http.Title.Unauthorized": "Не авторизован",
 	"Http.Title.Forbidden": "Доступ запрещён",
 	"Http.Title.LockedOut": "Заблокировано",
+	"Http.Title.TooManyRequests": "Слишком много запросов",
+	"Http.RateLimit.Exceeded": "Вы отправляете слишком много запросов. Немного подождите и попробуйте ещё раз.",
 	"Auth.User.EmailAlreadyExists": "Аккаунт с таким email уже существует.",
 	"Auth.User.UsernameAlreadyExists": "Аккаунт с таким именем пользователя уже существует.",
 	"Auth.User.WeakPassword": "Пароль не соответствует минимальным требованиям безопасности.",

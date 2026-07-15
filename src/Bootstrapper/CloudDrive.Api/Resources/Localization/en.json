@@ -5,6 +5,8 @@
 	"Http.Title.Unauthorized": "Unauthorized",
 	"Http.Title.Forbidden": "Forbidden",
 	"Http.Title.LockedOut": "Locked out",
+	"Http.Title.TooManyRequests": "Too many requests",
+	"Http.RateLimit.Exceeded": "Too many requests. Please try again later.",
 	"Auth.User.EmailAlreadyExists": "An account with this email address already exists.",
 	"Auth.User.UsernameAlreadyExists": "An account with this username already exists.",
 	"Auth.User.WeakPassword": "The password does not meet the minimum security requirements.",

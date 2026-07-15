@@ -1,4 +1,5 @@
 using Shared.Api.Extensions;
+using Shared.Api.ExceptionHandling;
 using Shared.Kernel.Guids;
 using Auth.Endpoints;
 using Auth.Infrastructure.Configuration;
@@ -21,6 +22,12 @@ builder.Services
 	.AddJwtBearer();
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddRateLimiter(options =>
+{
+	options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+	options.OnRejected = RateLimitRejectionHandler.HandleAsync;
+});
 
 builder.Services.AddNpgsqlDataSource(
 	builder.Configuration.GetConnectionString("CloudDrive")
@@ -51,6 +58,7 @@ app.UseGlobalExceptionHandling();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
@@ -58,10 +66,6 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 	Predicate = static check => check.Tags.Contains("ready"),
 });
 
-// TODO: добавить rate limiting (AddRateLimiter/UseRateLimiter) для auth-эндпоинтов (login/register)
-// Там изменить статус по умолчанию на 429
-// Также добавить информацию через сколько можно попробовать снова
-// И добавить группировку (по IP, userId либо как ещё)
 app.MapAuthEndpoints();
 
 if (app.Environment.IsDevelopment())
