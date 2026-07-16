@@ -8,4 +8,12 @@
 		<FrameworkReference Include="Microsoft.AspNetCore.App"/>
 	</ItemGroup>
 
+	<ItemGroup>
+		<PackageReference Include="Serilog.AspNetCore" />
+		<PackageReference Include="Serilog.Enrichers.Environment" />
+		<PackageReference Include="Serilog.Enrichers.Span" />
+		<PackageReference Include="Serilog.Enrichers.Thread" />
+		<PackageReference Include="Serilog.Sinks.Seq" />
+	</ItemGroup>
+
 </Project>

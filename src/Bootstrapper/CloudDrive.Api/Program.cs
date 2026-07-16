@@ -11,6 +11,8 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddLoggingConfiguration();
+
 builder.Services
 	.AddSingleton(TimeProvider.System)
 	.AddSingleton<IGuidProvider, GuidProvider>()
@@ -52,6 +54,8 @@ app.Services.GetRequiredService<IStartupValidator>().Validate();
 
 if (builder.Configuration.GetValue<bool>("Migrations:ApplyOnStartup"))
 	await app.Services.MigrateAuthModuleAsync();
+
+app.UseLoggingConfiguration();
 
 app.UseRequestLocalizationConfiguration();
 app.UseGlobalExceptionHandling();

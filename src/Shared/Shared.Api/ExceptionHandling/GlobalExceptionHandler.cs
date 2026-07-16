@@ -23,7 +23,7 @@ public sealed class GlobalExceptionHandler(
 		    && cancellationToken.IsCancellationRequested)
 			return false;
 
-		var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
+		var traceId = Activity.Current?.TraceId.ToString() ?? httpContext.TraceIdentifier;
 
 		logger.LogError(
 			exception,

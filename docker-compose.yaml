@@ -11,9 +11,12 @@ services:
             - ASPNETCORE_ENVIRONMENT=Development
             - ConnectionStrings__CloudDrive=${ConnectionStrings__CloudDrive}
             - Jwt__SigningKey=${Jwt__SigningKey}
+            - Seq__ServerUrl=http://clouddrive.seq:80
         depends_on:
             clouddrive.database:
                 condition: service_healthy
+            clouddrive.seq:
+                condition: service_started
         restart: unless-stopped
     
     clouddrive.database:
@@ -33,3 +36,15 @@ services:
             timeout: 5s
             retries: 5
             start_period: 10s
+
+    clouddrive.seq:
+        image: datalust/seq:latest
+        container_name: clouddrive.seq
+        environment:
+            - ACCEPT_EULA=Y
+            - SEQ_FIRSTRUN_NOAUTHENTICATION=True
+        ports:
+            - "5341:80"
+        volumes:
+            - ./.containers/seq:/data
+        restart: unless-stopped
