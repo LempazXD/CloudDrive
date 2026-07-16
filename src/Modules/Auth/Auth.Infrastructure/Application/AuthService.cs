@@ -120,6 +120,14 @@ internal sealed class AuthService(
 		if (user is null)
 			return Error.Unauthorized("Auth.RefreshToken.Invalid");
 
+		if (await userManager.IsLockedOutAsync(user))
+		{
+			var lockoutEnd = await userManager.GetLockoutEndDateAsync(user);
+			return lockoutEnd is { } end
+				? Error.LockedOut("Auth.User.LockedOut", end)
+				: Error.LockedOut("Auth.User.LockedOut");
+		}
+
 		return await IssueTokensAsync(user, tokenToRotate: existing, ct);
 	}
 
