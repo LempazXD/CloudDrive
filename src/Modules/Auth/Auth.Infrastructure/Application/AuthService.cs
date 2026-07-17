@@ -52,9 +52,16 @@ internal sealed class AuthService(
 			                                   SqlState: PostgresErrorCodes.UniqueViolation
 		                                   } pgEx)
 		{
-			return pgEx.ConstraintName == "UserNameIndex"
-				? Error.Conflict("Auth.User.UsernameAlreadyExists")
-				: Error.Conflict("Auth.User.EmailAlreadyExists");
+			// Гонка check-then-insert в RequireUniqueEmail (см. ApplicationUserConfiguration) ловится здесь на уровне БД и превращается в тот же Conflict, что и штатные ветки DuplicateUserName/DuplicateEmail в IdentityResultExtensions, вместо необработанного исключения.
+			switch (pgEx.ConstraintName)
+			{
+				case "UserNameIndex":
+					return Error.Conflict("Auth.User.UsernameAlreadyExists");
+				case "EmailIndex":
+					return Error.Conflict("Auth.User.EmailAlreadyExists");
+				default:
+					throw;
+			}
 		}
 	}
 
@@ -63,7 +70,9 @@ internal sealed class AuthService(
 		if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
 			return Error.Unauthorized("Auth.User.InvalidCredentials");
 
-		var user = await userManager.FindByNameAsync(login) ?? await userManager.FindByEmailAsync(login);
+		var user = await userManager.FindByNameAsync(login)
+		           ?? await userManager.FindByEmailAsync(login);
+
 		if (user is null)
 			return Error.Unauthorized("Auth.User.InvalidCredentials");
 
