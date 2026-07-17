@@ -65,13 +65,7 @@ internal sealed class AuthService(
 
 		var user = await userManager.FindByNameAsync(login) ?? await userManager.FindByEmailAsync(login);
 		if (user is null)
-		{
-			var dummyHash = LazyInitializer.EnsureInitialized(
-				ref _dummyPasswordHash,
-				() => new Lazy<string>(() => passwordHasher.HashPassword(null!, "not-a-real-password")));
-			passwordHasher.VerifyHashedPassword(null!, dummyHash.Value, password);
 			return Error.Unauthorized("Auth.User.InvalidCredentials");
-		}
 
 		var signInResult = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
 		if (signInResult.IsLockedOut)
