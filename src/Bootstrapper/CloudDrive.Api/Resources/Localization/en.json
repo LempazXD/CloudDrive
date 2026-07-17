@@ -12,7 +12,7 @@
 	"Auth.User.WeakPassword": "The password does not meet the minimum security requirements.",
 	"Auth.User.InvalidEmail": "The email address is not valid.",
 	"Auth.User.InvalidUsername": "The username is not valid.",
-	"Auth.User.InvalidCredentials": "The username/email or password is incorrect.",
+	"Auth.User.InvalidCredentials": "The login or password is incorrect.",
 	"Auth.User.LockedOut": "The account is temporarily locked due to too many failed login attempts. Please try again later.",
 	"Auth.User.ConcurrencyConflict": "The account was modified by another request. Please try again.",
 	"Auth.User.RegistrationFailed": "Registration failed. Please check your details and try again.",
