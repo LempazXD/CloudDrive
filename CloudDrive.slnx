@@ -19,4 +19,7 @@
 		<Project Path="src/Shared/Shared.Kernel/Shared.Kernel.csproj" />
 	</Folder>
 	<Folder Name="/tests/" />
+	<Folder Name="/tests/Modules/Auth/">
+		<Project Path="tests/Modules/Auth/Auth.Infrastructure.Tests/Auth.Infrastructure.Tests.csproj" />
+	</Folder>
 </Solution>
