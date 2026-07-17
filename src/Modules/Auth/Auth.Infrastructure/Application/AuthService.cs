@@ -52,7 +52,12 @@ internal sealed class AuthService(
 			                                   SqlState: PostgresErrorCodes.UniqueViolation
 		                                   } pgEx)
 		{
-			// Гонка check-then-insert в RequireUniqueEmail (см. ApplicationUserConfiguration) ловится здесь на уровне БД и превращается в тот же Conflict, что и штатные ветки DuplicateUserName/DuplicateEmail в IdentityResultExtensions, вместо необработанного исключения.
+			// UserManager.CreateAsync (RequireUniqueEmail): - check и insert не атомарны.
+			// Два параллельных /register с одинаковым email могут оба пройти проверку до того, как
+			// первый из них будет вставлен, и тогда второй INSERT упадёт на уникальном индексе в БД
+			// (ApplicationUserConfiguration - EmailIndex/UserNameIndex), а не на штатной валидации Identity.
+			// Этот catch - подстраховка на такой случай: сводит гонку к тому же Conflict, что и обычные
+			// DuplicateUserName/DuplicateEmail из IdentityResultExtensions.
 			switch (pgEx.ConstraintName)
 			{
 				case "UserNameIndex":
