@@ -12,6 +12,7 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddLoggingConfiguration();
+builder.AddOpenTelemetryConfiguration();
 
 builder.Services
 	.AddSingleton(TimeProvider.System)

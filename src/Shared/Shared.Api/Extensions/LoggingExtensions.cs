@@ -14,7 +14,7 @@ public static class LoggingExtensions
 	{
 		builder.Services.AddOptions<SeqOptions>()
 			.Bind(builder.Configuration.GetSection("Seq"))
-			.Validate(o => Uri.TryCreate(o.ServerUrl, UriKind.Absolute, out _), "Seq:ServerUrl must be an absolute URL.")
+			.Validate(o => SeqOptions.TryGetServerUri(o.ServerUrl, out _), "Seq:ServerUrl must be an absolute URL.")
 			.ValidateOnStart();
 
 		builder.Host.UseSerilog((context, services, configuration) => configuration
