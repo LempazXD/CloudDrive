@@ -21,10 +21,7 @@ internal sealed class AuthService(
 	TimeProvider timeProvider,
 	IOptions<JwtOptions> jwtOptions) : IAuthService
 {
-	// Лениво считается через внедрённый хешер (та же стоимость, что и у реальной проверки),
-	// чтобы ответ на неизвестный email не отличался по времени от ответа на неверный пароль и
-	// не выдавал факт регистрации через тайминг;
-	// Lazy<string> гарантирует однократное вычисление при параллельных первых запросах.
+	// Уравнивает тайминг ответа на неизвестный логин с ответом на неверный пароль; Lazy - чтобы посчитать один раз.
 	private static Lazy<string>? _dummyPasswordHash;
 
 	public async Task<Result<AuthUserSummary>> RegisterAsync(
