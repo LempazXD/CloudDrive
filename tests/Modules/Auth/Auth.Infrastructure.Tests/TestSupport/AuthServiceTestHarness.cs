@@ -20,7 +20,6 @@ internal sealed class AuthServiceTestHarness
 	public IUserStore<ApplicationUser> UserStore { get; } = Substitute.For<IUserStore<ApplicationUser>>();
 	public UserManager<ApplicationUser> UserManager { get; }
 	public SignInManager<ApplicationUser> SignInManager { get; }
-	public IPasswordHasher<ApplicationUser> PasswordHasher { get; } = Substitute.For<IPasswordHasher<ApplicationUser>>();
 	public IJwtTokenGenerator JwtTokenGenerator { get; } = Substitute.For<IJwtTokenGenerator>();
 	public IRefreshTokenRepository RefreshTokenRepository { get; } = Substitute.For<IRefreshTokenRepository>();
 	public IGuidProvider GuidProvider { get; } = Substitute.For<IGuidProvider>();
@@ -44,7 +43,6 @@ internal sealed class AuthServiceTestHarness
 	public IAuthService CreateSut() => new AuthService(
 		UserManager,
 		SignInManager,
-		PasswordHasher,
 		JwtTokenGenerator,
 		RefreshTokenRepository,
 		GuidProvider,

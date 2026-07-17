@@ -36,7 +36,7 @@ public sealed class LoginAsyncTests
 	}
 
 	[Fact]
-	public async Task LoginAsync_UnknownLogin_ReturnsInvalidCredentialsAndStillVerifiesDummyHash()
+	public async Task LoginAsync_UnknownLogin_ReturnsInvalidCredentials()
 	{
 		var harness = new AuthServiceTestHarness();
 		harness.UserManager.FindByNameAsync("unknown").Returns((ApplicationUser?)null);
@@ -47,10 +47,6 @@ public sealed class LoginAsyncTests
 
 		Assert.True(result.IsFailure);
 		Assert.Equal("Auth.User.InvalidCredentials", result.Error!.Code);
-		// Тайминг-защита: даже для неизвестного логина должна выполняться сверка хеша,
-		// чтобы не выдавать факт отсутствия пользователя разницей во времени ответа.
-		harness.PasswordHasher.Received(1)
-			.VerifyHashedPassword(Arg.Any<ApplicationUser>(), Arg.Any<string>(), "password");
 	}
 
 	[Fact]

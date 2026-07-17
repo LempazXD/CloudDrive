@@ -14,16 +14,12 @@ namespace Auth.Infrastructure.Application;
 internal sealed class AuthService(
 	UserManager<ApplicationUser> userManager,
 	SignInManager<ApplicationUser> signInManager,
-	IPasswordHasher<ApplicationUser> passwordHasher,
 	IJwtTokenGenerator jwtTokenGenerator,
 	IRefreshTokenRepository refreshTokenRepository,
 	IGuidProvider guidProvider,
 	TimeProvider timeProvider,
 	IOptions<JwtOptions> jwtOptions) : IAuthService
 {
-	// Уравнивает тайминг ответа на неизвестный логин с ответом на неверный пароль; Lazy - чтобы посчитать один раз.
-	private static Lazy<string>? _dummyPasswordHash;
-
 	public async Task<Result<AuthUserSummary>> RegisterAsync(
 		string username,
 		string email,
