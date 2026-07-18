@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using Auth.Core.Application.Abstractions;
 using Auth.Infrastructure.Application;
+using Auth.Infrastructure.Caching;
 using Auth.Infrastructure.Identity;
 using Auth.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -64,7 +65,9 @@ public static class AuthModuleExtensions
 				};
 			});
 
+		services.AddMemoryCache();
 		services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
+		services.AddSingleton<IRefreshTokenReplayCache, RefreshTokenReplayCache>();
 		services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 		services.AddScoped<IAuthService, AuthService>();
 
@@ -86,6 +89,7 @@ public static class AuthModuleExtensions
 			.Validate(o => IsValidSigningKey(o.SigningKey), "Jwt:SigningKey must be a Base64 string decoding to at least 32 bytes (256 bits).")
 			.Validate(o => o.AccessTokenLifetime > TimeSpan.Zero, "Jwt:AccessTokenLifetime must be positive.")
 			.Validate(o => o.RefreshTokenLifetime > TimeSpan.Zero, "Jwt:RefreshTokenLifetime must be positive.")
+			.Validate(o => o.RefreshTokenReuseGracePeriod >= TimeSpan.Zero, "Jwt:RefreshTokenReuseGracePeriod must not be negative.")
 			.ValidateOnStart();
 	}
 

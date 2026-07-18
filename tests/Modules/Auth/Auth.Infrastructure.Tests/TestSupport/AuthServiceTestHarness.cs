@@ -22,6 +22,7 @@ internal sealed class AuthServiceTestHarness
 	public SignInManager<ApplicationUser> SignInManager { get; }
 	public IJwtTokenGenerator JwtTokenGenerator { get; } = Substitute.For<IJwtTokenGenerator>();
 	public IRefreshTokenRepository RefreshTokenRepository { get; } = Substitute.For<IRefreshTokenRepository>();
+	public IRefreshTokenReplayCache ReplayCache { get; } = Substitute.For<IRefreshTokenReplayCache>();
 	public IGuidProvider GuidProvider { get; } = Substitute.For<IGuidProvider>();
 	public FakeTimeProvider TimeProvider { get; } = new(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
 
@@ -45,6 +46,7 @@ internal sealed class AuthServiceTestHarness
 		SignInManager,
 		JwtTokenGenerator,
 		RefreshTokenRepository,
+		ReplayCache,
 		GuidProvider,
 		TimeProvider,
 		Options.Create(JwtOptions));

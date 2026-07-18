@@ -14,5 +14,7 @@ public sealed class JwtOptions
 
 	public TimeSpan RefreshTokenLifetime { get; init; } = TimeSpan.FromDays(30);
 
+	public TimeSpan RefreshTokenReuseGracePeriod { get; init; } = TimeSpan.FromSeconds(5);
+
 	public SymmetricSecurityKey GetSecurityKey() => new(Convert.FromBase64String(SigningKey));
 }

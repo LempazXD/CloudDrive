@@ -1,3 +1,4 @@
+using Auth.Core.Application.Abstractions;
 using Auth.Core.Domain;
 using Auth.Infrastructure.Identity;
 using Auth.Infrastructure.Tests.TestSupport;
@@ -56,6 +57,32 @@ public sealed class RefreshAsyncTests
 		Assert.Equal("Auth.RefreshToken.Revoked", result.Error.Code);
 		_ = harness.RefreshTokenRepository.Received(1)
 			.RevokeAllForUserAsync(existing.UserId, now, Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task RefreshAsync_RevokedTokenWithinGracePeriod_ReturnsReplayedTokensWithoutRevoking()
+	{
+		var harness = new AuthServiceTestHarness();
+		var now = harness.TimeProvider.GetUtcNow();
+		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29))
+			.SetRevoked(now.AddSeconds(-1));
+		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+			.Returns(existing);
+		var replayedTokens = new AuthTokens("cached-access-token", now.AddMinutes(15), "cached-refresh-token", now.AddDays(30));
+		harness.ReplayCache.TryGet(Arg.Any<string>(), out Arg.Any<AuthTokens>())
+			.Returns(x =>
+			{
+				x[1] = replayedTokens;
+				return true;
+			});
+		var sut = harness.CreateSut();
+
+		var result = await sut.RefreshAsync("raw-token", CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		Assert.Equal(replayedTokens, result.Value);
+		_ = harness.RefreshTokenRepository.DidNotReceive()
+			.RevokeAllForUserAsync(Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -134,6 +161,28 @@ public sealed class RefreshAsyncTests
 
 		Assert.True(result.IsSuccess);
 		Assert.Equal("access-token", result.Value.AccessToken);
+	}
+
+	[Fact]
+	public async Task RefreshAsync_ValidToken_CachesRotationForReplay()
+	{
+		var harness = new AuthServiceTestHarness();
+		var now = harness.TimeProvider.GetUtcNow();
+		var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = "user", Email = "user@test.com" };
+		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, "hash", now.AddDays(-1), now.AddDays(29));
+		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+			.Returns(existing);
+		harness.UserManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+		harness.UserManager.IsLockedOutAsync(user).Returns(false);
+		harness.JwtTokenGenerator.GenerateAccessToken(user).Returns(("access-token", now.AddMinutes(15)));
+		harness.RefreshTokenRepository
+			.TryRotateAsync(existing.Id, Arg.Any<RefreshToken>(), now, Arg.Any<CancellationToken>())
+			.Returns(true);
+		var sut = harness.CreateSut();
+
+		await sut.RefreshAsync("raw-token", CancellationToken.None);
+
+		harness.ReplayCache.Received(1).Set(existing.TokenHash, Arg.Any<AuthTokens>());
 	}
 
 	[Fact]

@@ -16,6 +16,7 @@ internal sealed class AuthService(
 	SignInManager<ApplicationUser> signInManager,
 	IJwtTokenGenerator jwtTokenGenerator,
 	IRefreshTokenRepository refreshTokenRepository,
+	IRefreshTokenReplayCache refreshTokenReplayCache,
 	IGuidProvider guidProvider,
 	TimeProvider timeProvider,
 	IOptions<JwtOptions> jwtOptions) : IAuthService
@@ -110,6 +111,13 @@ internal sealed class AuthService(
 
 		if (existing.IsRevoked)
 		{
+			// Льготное окно: если это тот же самый повтор недавно завершённой ротации (например,
+			// клиент не получил ответ из-за сетевого сбоя и повторил запрос с тем же токеном),
+			// отдаём ту же пару токенов вместо того, чтобы трактовать предъявление отозванного
+			// токена как кражу.
+			if (refreshTokenReplayCache.TryGet(hash, out var replayedTokens))
+				return Result.Success(replayedTokens);
+
 			await refreshTokenRepository.RevokeAllForUserAsync(existing.UserId, now, ct);
 			return Error.Unauthorized("Auth.RefreshToken.Revoked");
 		}
@@ -172,7 +180,11 @@ internal sealed class AuthService(
 		}
 
 		var (accessToken, accessTokenExpiresAtUtc) = jwtTokenGenerator.GenerateAccessToken(user);
-		return Result.Success(new AuthTokens(accessToken, accessTokenExpiresAtUtc, rawRefreshToken,
-			refreshTokenExpiresAtUtc));
+		var tokens = new AuthTokens(accessToken, accessTokenExpiresAtUtc, rawRefreshToken, refreshTokenExpiresAtUtc);
+
+		if (tokenToRotate is not null)
+			refreshTokenReplayCache.Set(tokenToRotate.TokenHash, tokens);
+
+		return Result.Success(tokens);
 	}
 }
