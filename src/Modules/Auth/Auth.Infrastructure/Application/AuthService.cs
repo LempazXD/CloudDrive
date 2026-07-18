@@ -118,7 +118,7 @@ internal sealed class AuthService(
 			if (refreshTokenReplayCache.TryGet(hash, out var replayedTokens))
 				return Result.Success(replayedTokens);
 
-			await refreshTokenRepository.RevokeAllForUserAsync(existing.UserId, now, ct);
+			await refreshTokenRepository.RevokeSessionAsync(existing.SessionId, now, ct);
 			return Error.Unauthorized("Auth.RefreshToken.Revoked");
 		}
 
@@ -156,14 +156,16 @@ internal sealed class AuthService(
 	{
 		var now = timeProvider.GetUtcNow();
 		var newTokenId = guidProvider.CreateVersion7();
+		var sessionId = tokenToRotate?.SessionId ?? newTokenId;
 		var rawRefreshToken = RefreshTokenGenerator.GenerateRaw();
 		var refreshTokenExpiresAtUtc = now.Add(jwtOptions.Value.RefreshTokenLifetime);
 		var refreshToken = RefreshToken.Create(
-			newTokenId,
-			user.Id,
-			RefreshTokenGenerator.Hash(rawRefreshToken),
-			now,
-			refreshTokenExpiresAtUtc);
+			id: newTokenId,
+			userId: user.Id,
+			sessionId: sessionId,
+			tokenHash: RefreshTokenGenerator.Hash(rawRefreshToken),
+			createdAtUtc: now,
+			expiresAtUtc: refreshTokenExpiresAtUtc);
 
 		if (tokenToRotate is not null)
 		{

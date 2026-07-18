@@ -40,11 +40,12 @@ public sealed class RefreshAsyncTests
 	}
 
 	[Fact]
-	public async Task RefreshAsync_RevokedToken_RevokesAllAndReturnsRevoked()
+	public async Task RefreshAsync_RevokedToken_RevokesSessionAndReturnsRevoked()
 	{
 		var harness = new AuthServiceTestHarness();
 		var now = harness.TimeProvider.GetUtcNow();
-		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29))
+		var sessionId = Guid.NewGuid();
+		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), sessionId, "hash", now.AddDays(-1), now.AddDays(29))
 			.SetRevoked(now.AddMinutes(-1));
 		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(existing);
@@ -56,7 +57,9 @@ public sealed class RefreshAsyncTests
 		Assert.Equal(ErrorType.Unauthorized, result.Error!.Type);
 		Assert.Equal("Auth.RefreshToken.Revoked", result.Error.Code);
 		_ = harness.RefreshTokenRepository.Received(1)
-			.RevokeAllForUserAsync(existing.UserId, now, Arg.Any<CancellationToken>());
+			.RevokeSessionAsync(sessionId, now, Arg.Any<CancellationToken>());
+		_ = harness.RefreshTokenRepository.DidNotReceive()
+			.RevokeAllForUserAsync(Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -64,7 +67,7 @@ public sealed class RefreshAsyncTests
 	{
 		var harness = new AuthServiceTestHarness();
 		var now = harness.TimeProvider.GetUtcNow();
-		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29))
+		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29))
 			.SetRevoked(now.AddSeconds(-1));
 		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(existing);
@@ -83,6 +86,8 @@ public sealed class RefreshAsyncTests
 		Assert.Equal(replayedTokens, result.Value);
 		_ = harness.RefreshTokenRepository.DidNotReceive()
 			.RevokeAllForUserAsync(Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+		_ = harness.RefreshTokenRepository.DidNotReceive()
+			.RevokeSessionAsync(Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -90,7 +95,7 @@ public sealed class RefreshAsyncTests
 	{
 		var harness = new AuthServiceTestHarness();
 		var now = harness.TimeProvider.GetUtcNow();
-		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), "hash", now.AddDays(-31), now.AddMinutes(-1));
+		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "hash", now.AddDays(-31), now.AddMinutes(-1));
 		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(existing);
 		var sut = harness.CreateSut();
@@ -106,7 +111,7 @@ public sealed class RefreshAsyncTests
 	{
 		var harness = new AuthServiceTestHarness();
 		var now = harness.TimeProvider.GetUtcNow();
-		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29));
+		var existing = RefreshToken.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29));
 		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(existing);
 		harness.UserManager.FindByIdAsync(existing.UserId.ToString()).Returns((ApplicationUser?)null);
@@ -124,7 +129,7 @@ public sealed class RefreshAsyncTests
 		var harness = new AuthServiceTestHarness();
 		var now = harness.TimeProvider.GetUtcNow();
 		var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = "user", Email = "user@test.com" };
-		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, "hash", now.AddDays(-1), now.AddDays(29));
+		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29));
 		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(existing);
 		harness.UserManager.FindByIdAsync(user.Id.ToString()).Returns(user);
@@ -144,7 +149,7 @@ public sealed class RefreshAsyncTests
 		var harness = new AuthServiceTestHarness();
 		var now = harness.TimeProvider.GetUtcNow();
 		var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = "user", Email = "user@test.com" };
-		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, "hash", now.AddDays(-1), now.AddDays(29));
+		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29));
 		var newTokenId = Guid.NewGuid();
 		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(existing);
@@ -164,12 +169,39 @@ public sealed class RefreshAsyncTests
 	}
 
 	[Fact]
+	public async Task RefreshAsync_ValidToken_RotatedTokenInheritsSessionId()
+	{
+		var harness = new AuthServiceTestHarness();
+		var now = harness.TimeProvider.GetUtcNow();
+		var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = "user", Email = "user@test.com" };
+		var sessionId = Guid.NewGuid();
+		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, sessionId, "hash", now.AddDays(-1), now.AddDays(29));
+		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+			.Returns(existing);
+		harness.UserManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+		harness.UserManager.IsLockedOutAsync(user).Returns(false);
+		harness.JwtTokenGenerator.GenerateAccessToken(user).Returns(("access-token", now.AddMinutes(15)));
+		harness.RefreshTokenRepository
+			.TryRotateAsync(existing.Id, Arg.Any<RefreshToken>(), now, Arg.Any<CancellationToken>())
+			.Returns(true);
+		var sut = harness.CreateSut();
+
+		await sut.RefreshAsync("raw-token", CancellationToken.None);
+
+		_ = harness.RefreshTokenRepository.Received(1).TryRotateAsync(
+			existing.Id,
+			Arg.Is<RefreshToken>(t => t != null && t.SessionId == sessionId),
+			now,
+			Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
 	public async Task RefreshAsync_ValidToken_CachesRotationForReplay()
 	{
 		var harness = new AuthServiceTestHarness();
 		var now = harness.TimeProvider.GetUtcNow();
 		var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = "user", Email = "user@test.com" };
-		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, "hash", now.AddDays(-1), now.AddDays(29));
+		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29));
 		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(existing);
 		harness.UserManager.FindByIdAsync(user.Id.ToString()).Returns(user);
@@ -191,7 +223,7 @@ public sealed class RefreshAsyncTests
 		var harness = new AuthServiceTestHarness();
 		var now = harness.TimeProvider.GetUtcNow();
 		var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = "user", Email = "user@test.com" };
-		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, "hash", now.AddDays(-1), now.AddDays(29));
+		var existing = RefreshToken.Create(Guid.NewGuid(), user.Id, Guid.NewGuid(), "hash", now.AddDays(-1), now.AddDays(29));
 		harness.RefreshTokenRepository.GetByTokenHashAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
 			.Returns(existing);
 		harness.UserManager.FindByIdAsync(user.Id.ToString()).Returns(user);

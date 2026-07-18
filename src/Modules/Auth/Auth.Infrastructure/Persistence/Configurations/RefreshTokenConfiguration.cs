@@ -19,6 +19,9 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
 		// а не всю его историю.
 		builder.HasIndex(t => t.UserId).HasFilter("\"RevokedAtUtc\" IS NULL");
 
+		// Аналогично - под RevokeSessionAsync, которым реально пользуется reuse-detection.
+		builder.HasIndex(t => t.SessionId).HasFilter("\"RevokedAtUtc\" IS NULL");
+
 		builder.HasOne<ApplicationUser>()
 			.WithMany()
 			.HasForeignKey(t => t.UserId)

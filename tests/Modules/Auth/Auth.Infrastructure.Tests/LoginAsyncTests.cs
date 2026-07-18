@@ -121,7 +121,7 @@ public sealed class LoginAsyncTests
 		Assert.Equal(accessTokenExpiry, result.Value.AccessTokenExpiresAtUtc);
 		Assert.False(string.IsNullOrWhiteSpace(result.Value.RefreshToken));
 		_ = harness.RefreshTokenRepository.Received(1).AddAsync(
-			Arg.Is<RefreshToken>(t => t != null && t.Id == tokenId && t.UserId == user.Id),
+			Arg.Is<RefreshToken>(t => t != null && t.Id == tokenId && t.UserId == user.Id && t.SessionId == tokenId),
 			Arg.Any<CancellationToken>());
 		_ = harness.RefreshTokenRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
 	}

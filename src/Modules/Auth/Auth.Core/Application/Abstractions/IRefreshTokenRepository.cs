@@ -24,13 +24,16 @@ public interface IRefreshTokenRepository
 	Task<bool> TryRevokeByHashAsync(string tokenHash, DateTimeOffset revokedAtUtc, CancellationToken ct);
 
 	/// <summary>
-	/// Отзывает все активные refresh-токены пользователя <paramref name="userId"/>.
+	/// Отзывает все активные refresh-токены пользователя <paramref name="userId"/> всех сессий.
 	/// <para>
-	/// Вызывается, когда повторно предъявляется уже отозванный токен - сигнал о возможной краже:
-	/// весь набор сессий аннулируется вместо того, чтобы доверять любому токену, произошедшему от него.
+	/// На данный момент вызывающего кода нет - это задел под будущий явный "выйти со всех устройств"
+	/// или отзыв при сбросе пароля.
 	/// </para>
 	/// </summary>
 	Task RevokeAllForUserAsync(Guid userId, DateTimeOffset revokedAtUtc, CancellationToken ct);
+
+	/// <summary> Отзывает все активные refresh-токены сессии <paramref name="sessionId"/> </summary>
+	Task RevokeSessionAsync(Guid sessionId, DateTimeOffset revokedAtUtc, CancellationToken ct);
 
 	Task SaveChangesAsync(CancellationToken ct);
 }

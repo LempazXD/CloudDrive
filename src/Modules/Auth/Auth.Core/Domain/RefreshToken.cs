@@ -8,6 +8,12 @@ public sealed class RefreshToken
 
 	public Guid UserId { get; private set; }
 
+	/// <summary>
+	/// Идентификатор сессии: общий для всех токенов одной цепочки ротаций.
+	/// Равен <see cref="Id"/> при логине, при ротации наследуется от предыдущего токена.
+	/// </summary>
+	public Guid SessionId { get; private set; }
+
 	public string TokenHash { get; private set; } = null!;
 
 	public DateTimeOffset CreatedAtUtc { get; private set; }
@@ -23,6 +29,7 @@ public sealed class RefreshToken
 	public static RefreshToken Create(
 		Guid id,
 		Guid userId,
+		Guid sessionId,
 		string tokenHash,
 		DateTimeOffset createdAtUtc,
 		DateTimeOffset expiresAtUtc) =>
@@ -30,6 +37,7 @@ public sealed class RefreshToken
 		{
 			Id = id,
 			UserId = userId,
+			SessionId = sessionId,
 			TokenHash = tokenHash,
 			CreatedAtUtc = createdAtUtc,
 			ExpiresAtUtc = expiresAtUtc

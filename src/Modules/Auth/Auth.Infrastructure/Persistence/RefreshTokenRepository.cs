@@ -48,6 +48,9 @@ internal sealed class RefreshTokenRepository(AuthDbContext db) : IRefreshTokenRe
 	public Task RevokeAllForUserAsync(Guid userId, DateTimeOffset revokedAtUtc, CancellationToken ct) =>
 		RevokeWhereAsync(t => t.UserId == userId, revokedAtUtc, ct);
 
+	public Task RevokeSessionAsync(Guid sessionId, DateTimeOffset revokedAtUtc, CancellationToken ct) =>
+		RevokeWhereAsync(t => t.SessionId == sessionId, revokedAtUtc, ct);
+
 	public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 
 	private Task<int> RevokeWhereAsync(
