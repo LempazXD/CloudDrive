@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using Shared.Kernel.Extensions;
 using Shared.Kernel.Results;
 
@@ -6,11 +7,11 @@ namespace Auth.Infrastructure.Identity;
 
 internal static class IdentityResultExtensions
 {
-	public static Result ToResult(this IdentityResult result, string fallbackErrorCode) =>
-		result.Succeeded ? Result.Success() : Result.Failure(ToError(result, fallbackErrorCode));
+	public static Result ToResult(this IdentityResult result, string fallbackErrorCode, ILogger logger) =>
+		result.Succeeded ? Result.Success() : Result.Failure(ToError(result, fallbackErrorCode, logger));
 
-	public static Result<T> ToResult<T>(this IdentityResult result, T value, string fallbackErrorCode) =>
-		result.ToResult(fallbackErrorCode).ToValueResult(value);
+	public static Result<T> ToResult<T>(this IdentityResult result, T value, string fallbackErrorCode, ILogger logger) =>
+		result.ToResult(fallbackErrorCode, logger).ToValueResult(value);
 
 	private static Error ToError(IdentityResult result, string fallbackErrorCode)
 	{
@@ -21,6 +22,9 @@ internal static class IdentityResultExtensions
 				return mapped;
 		}
 
+		logger.LogWarning(
+			"IdentityResult had no known mapping for codes [{ErrorCodes}]; falling back to {FallbackErrorCode}.",
+			string.Join(',', result.Errors.Select(e => e.Code)), fallbackErrorCode);
 		return Error.Validation(fallbackErrorCode);
 	}
 

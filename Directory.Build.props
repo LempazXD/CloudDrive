@@ -12,10 +12,11 @@
 		<!--
 			CA1716: "Shared" is a reserved keyword in VB; it is an intentional, fixed part of our
 			        modular-monolith namespace scheme (CloudDrive.Shared.*) and we don't target VB consumers.
-			CA1848 (LoggerMessage) is intentionally left enabled so hot-path logging still gets flagged;
-			cold-path call sites suppress it locally via [SuppressMessage] with a justification.
+			CA1848/CA1873 (LoggerMessage / avoid-expensive-logging-call): meant for library hot
+			        paths (ASP.NET Core, Npgsql, EF Core); our per-request calls are negligible next
+			        to password hashing/DB round-trips, so both are off repo-wide.
 		-->
-		<NoWarn>$(NoWarn);CA1716</NoWarn>
+		<NoWarn>$(NoWarn);CA1716;CA1848;CA1873</NoWarn>
 
 		<InvariantGlobalization>false</InvariantGlobalization>
 		<GenerateDocumentationFile>false</GenerateDocumentationFile>

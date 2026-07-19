@@ -3,6 +3,7 @@ using Auth.Infrastructure.Application;
 using Auth.Infrastructure.Configuration;
 using Auth.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -25,6 +26,7 @@ internal sealed class AuthServiceTestHarness
 	public IRefreshTokenReplayCache ReplayCache { get; } = Substitute.For<IRefreshTokenReplayCache>();
 	public IGuidProvider GuidProvider { get; } = Substitute.For<IGuidProvider>();
 	public FakeTimeProvider TimeProvider { get; } = new(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+	public ILogger<AuthService> Logger { get; } = Substitute.For<ILogger<AuthService>>();
 
 	public JwtOptions JwtOptions { get; } = new()
 	{
@@ -49,5 +51,6 @@ internal sealed class AuthServiceTestHarness
 		ReplayCache,
 		GuidProvider,
 		TimeProvider,
-		Options.Create(JwtOptions));
+		Options.Create(JwtOptions),
+		Logger);
 }
