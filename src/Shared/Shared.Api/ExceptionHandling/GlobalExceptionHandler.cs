@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,8 +11,6 @@ public sealed class GlobalExceptionHandler(
 	ILogger<GlobalExceptionHandler> logger)
 	: IExceptionHandler
 {
-	[SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates",
-		Justification = "Cold path: runs only on an unhandled exception, not a hot path.")]
 	public async ValueTask<bool> TryHandleAsync(
 		HttpContext httpContext,
 		Exception exception,

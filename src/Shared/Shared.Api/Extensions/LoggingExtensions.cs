@@ -1,9 +1,11 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Enrichers.Span;
+using Serilog.Events;
 using Shared.Api.Logging;
 
 namespace Shared.Api.Extensions;
@@ -37,6 +39,14 @@ public static class LoggingExtensions
 	{
 		app.UseSerilogRequestLogging(options =>
 		{
+			// rate-limit отклонение (429) неотличимо от обычного запроса без явного
+			// фильтра по StatusCode - поднимаем его до Warning отдельно.
+			options.GetLevel = (httpContext, _, ex) => ex is not null || httpContext.Response.StatusCode > 499
+				? LogEventLevel.Error
+				: httpContext.Response.StatusCode == StatusCodes.Status429TooManyRequests
+					? LogEventLevel.Warning
+					: LogEventLevel.Information;
+
 			options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
 			{
 				diagnosticContext.Set("ClientIP", httpContext.Connection.RemoteIpAddress?.ToString());
