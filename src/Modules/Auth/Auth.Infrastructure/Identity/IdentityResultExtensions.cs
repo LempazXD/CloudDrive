@@ -13,7 +13,16 @@ internal static class IdentityResultExtensions
 	public static Result<T> ToResult<T>(this IdentityResult result, T value, string fallbackErrorCode, ILogger logger) =>
 		result.ToResult(fallbackErrorCode, logger).ToValueResult(value);
 
-	private static Error ToError(IdentityResult result, string fallbackErrorCode)
+	// Просматривает все IdentityError, а не только первую, поэтому распознанная ошибка, идущая
+	// после нераспознанной (или при пустой коллекции Errors), никогда не проскочит незамеченной.
+	// TODO: тем не менее возвращается только первая распознанная ошибка - если пароль нарушает сразу
+	// несколько правил (например, PasswordTooShort и PasswordRequiresDigit одновременно), клиент узнаёт
+	// только про одно из них за запрос и должен будет присылать повторные попытки, чтобы обнаружить
+	// остальные. Правильный вариант - собирать все распознанные ошибки в список ValidationFailure
+	// (PropertyName, ReasonCode) и возвращать один Error.Validation(...) через ValidationError вместо
+	// первого найденного совпадения.
+
+	private static Error ToError(IdentityResult result, string fallbackErrorCode, ILogger logger)
 	{
 		foreach (var error in result.Errors)
 		{
