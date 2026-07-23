@@ -18,5 +18,21 @@
 	"Auth.User.RegistrationFailed": "Не удалось зарегистрироваться. Проверьте введённые данные и попробуйте снова.",
 	"Auth.RefreshToken.Invalid": "Недействительный refresh-токен.",
 	"Auth.RefreshToken.Expired": "Срок действия refresh-токена истёк. Пожалуйста, войдите снова.",
-	"Auth.RefreshToken.Revoked": "Refresh-токен был отозван. Пожалуйста, войдите снова."
+	"Auth.RefreshToken.Revoked": "Refresh-токен был отозван. Пожалуйста, войдите снова.",
+	"Files.File.InvalidFileName": "Некорректное имя файла.",
+	"Files.File.FileNameTooLong": "Имя файла не должно превышать 255 символов.",
+	"Files.File.InvalidContentType": "Некорректный content type.",
+	"Files.File.InvalidSize": "Размер файла должен быть больше нуля.",
+	"Files.File.InvalidChecksum": "Некорректная заявленная контрольная сумма SHA-256.",
+	"Files.File.NotFound": "Файл не найден.",
+	"Files.File.NameConflict": "Файл с таким именем уже существует в этой папке.",
+	"Files.File.ChecksumMismatch": "Количество загруженных частей не совпадает с ожидаемым.",
+	"Files.File.CompletionFailed": "Хранилищу не удалось завершить загрузку. Попробуйте загрузить файл ещё раз.",
+	"Files.File.AlreadyCompleted": "Эта загрузка уже завершается или уже завершена.",
+	"Files.File.InvalidPageSize": "Размер страницы должен быть больше нуля.",
+	"Files.File.InvalidCursor": "Некорректный курсор пагинации.",
+	"Files.Folder.NotFound": "Папка не найдена.",
+	"Files.Folder.InvalidName": "Некорректное имя папки.",
+	"Files.Folder.NameConflict": "Папка с таким именем уже существует здесь.",
+	"Files.Folder.NotEmpty": "Папка не пуста. Сначала удалите или переместите её содержимое."
 }

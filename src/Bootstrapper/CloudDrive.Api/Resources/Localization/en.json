@@ -18,5 +18,21 @@
 	"Auth.User.RegistrationFailed": "Registration failed. Please check your details and try again.",
 	"Auth.RefreshToken.Invalid": "The refresh token is invalid.",
 	"Auth.RefreshToken.Expired": "The refresh token has expired. Please sign in again.",
-	"Auth.RefreshToken.Revoked": "The refresh token has been revoked. Please sign in again."
+	"Auth.RefreshToken.Revoked": "The refresh token has been revoked. Please sign in again.",
+	"Files.File.InvalidFileName": "The file name is not valid.",
+	"Files.File.FileNameTooLong": "The file name must not exceed 255 characters.",
+	"Files.File.InvalidContentType": "The content type is not valid.",
+	"Files.File.InvalidSize": "The file size must be greater than zero.",
+	"Files.File.InvalidChecksum": "The declared SHA-256 checksum is not valid.",
+	"Files.File.NotFound": "The file was not found.",
+	"Files.File.NameConflict": "A file with this name already exists in this folder.",
+	"Files.File.ChecksumMismatch": "The number of uploaded parts does not match what was expected.",
+	"Files.File.CompletionFailed": "The storage backend could not complete the upload. Please try uploading the file again.",
+	"Files.File.AlreadyCompleted": "This upload is already completing or has already completed.",
+	"Files.File.InvalidPageSize": "The page size must be greater than zero.",
+	"Files.File.InvalidCursor": "The pagination cursor is not valid.",
+	"Files.Folder.NotFound": "The folder was not found.",
+	"Files.Folder.InvalidName": "The folder name is not valid.",
+	"Files.Folder.NameConflict": "A folder with this name already exists here.",
+	"Files.Folder.NotEmpty": "The folder is not empty. Delete or move its contents first."
 }
