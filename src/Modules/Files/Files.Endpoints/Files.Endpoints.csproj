@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<ItemGroup>
+		<ProjectReference Include="..\Files.Core\Files.Core.csproj"/>
+		<ProjectReference Include="..\..\..\Shared\Shared.Api\Shared.Api.csproj"/>
+	</ItemGroup>
+
+</Project>
