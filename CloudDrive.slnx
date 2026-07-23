@@ -14,6 +14,11 @@
 		<Project Path="src/Modules/Auth/Auth.Infrastructure/Auth.Infrastructure.csproj" />
 		<Project Path="src/Modules/Auth/Auth.Endpoints/Auth.Endpoints.csproj" />
 	</Folder>
+	<Folder Name="/src/Modules/Files/">
+		<Project Path="src/Modules/Files/Files.Core/Files.Core.csproj" />
+		<Project Path="src/Modules/Files/Files.Infrastructure/Files.Infrastructure.csproj" />
+		<Project Path="src/Modules/Files/Files.Endpoints/Files.Endpoints.csproj" />
+	</Folder>
 	<Folder Name="/src/Shared/">
 		<Project Path="src/Shared/Shared.Api/Shared.Api.csproj" />
 		<Project Path="src/Shared/Shared.Kernel/Shared.Kernel.csproj" />
