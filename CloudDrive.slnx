@@ -27,4 +27,7 @@
 	<Folder Name="/tests/Modules/Auth/">
 		<Project Path="tests/Modules/Auth/Auth.Infrastructure.Tests/Auth.Infrastructure.Tests.csproj" />
 	</Folder>
+	<Folder Name="/tests/Modules/Files/">
+		<Project Path="tests/Modules/Files/Files.Infrastructure.Tests/Files.Infrastructure.Tests.csproj" />
+	</Folder>
 </Solution>
