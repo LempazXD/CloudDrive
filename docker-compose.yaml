@@ -12,13 +12,20 @@ services:
             - ConnectionStrings__CloudDrive=${ConnectionStrings__CloudDrive}
             - Jwt__SigningKey=${Jwt__SigningKey}
             - Seq__ServerUrl=http://clouddrive.seq:80
+            - ObjectStorage__Endpoint=http://clouddrive.storage:8333
+            - ObjectStorage__PublicEndpoint=http://localhost:8333
+            - ObjectStorage__AccessKey=${ObjectStorage__AccessKey}
+            - ObjectStorage__SecretKey=${ObjectStorage__SecretKey}
+            - ObjectStorage__Bucket=${ObjectStorage__Bucket}
         depends_on:
             clouddrive.database:
                 condition: service_healthy
             clouddrive.seq:
                 condition: service_started
+            clouddrive.storage:
+                condition: service_healthy
         restart: unless-stopped
-    
+
     clouddrive.database:
         image: postgres:17
         container_name: clouddrive.database
@@ -47,4 +54,24 @@ services:
             - "5341:80"
         volumes:
             - ./.containers/seq:/data
+        restart: unless-stopped
+
+    clouddrive.storage:
+        image: chrislusf/seaweedfs
+        container_name: clouddrive.storage
+        environment:
+            - AWS_ACCESS_KEY_ID=${STORAGE_ACCESS_KEY}
+            - AWS_SECRET_ACCESS_KEY=${STORAGE_SECRET_KEY}
+            - S3_BUCKET=${STORAGE_BUCKET}
+        ports:
+            - "8333:8333"
+            - "9333:9333"
+        volumes:
+            - ./.containers/storage:/data
+        healthcheck:
+            test: [ "CMD", "wget", "--spider", "-q", "http://localhost:9333/cluster/status" ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
         restart: unless-stopped
