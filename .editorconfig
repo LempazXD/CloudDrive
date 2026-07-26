@@ -11,6 +11,11 @@ trim_trailing_whitespace = true
 # ; для namespace при создании
 csharp_style_namespace_declarations = file_scoped:suggestion
 
+# EF Core migrations are generated code - CA1861  fires on the
+# composite-index array literals EF Core itself emits for multi-column indexes;
+[**/Migrations/*.cs]
+dotnet_diagnostic.CA1861.severity = none
+
 # Xml files
 [*.xml]
 indent_size = 2
