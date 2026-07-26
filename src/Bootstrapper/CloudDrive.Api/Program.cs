@@ -3,6 +3,9 @@ using Shared.Api.ExceptionHandling;
 using Shared.Kernel.Guids;
 using Auth.Endpoints;
 using Auth.Infrastructure.Configuration;
+using Files.Endpoints;
+using Files.Infrastructure.Configuration;
+using Files.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -37,13 +40,15 @@ builder.Services.AddNpgsqlDataSource(
 		?? throw new InvalidOperationException("Connection string 'CloudDrive' is not configured."));
 
 builder.Services.AddAuthModule(builder.Configuration);
+builder.Services.AddFilesModule(builder.Configuration);
 
 builder.Services
 	.AddHealthChecks()
 	.AddNpgSql(
 		sp => sp.GetRequiredService<NpgsqlDataSource>(),
 		name: "postgresql",
-		tags: ["ready"]);
+		tags: ["ready"])
+	.AddCheck<ObjectStorageHealthCheck>("object-storage", tags: ["ready"]);
 
 var app = builder.Build();
 
@@ -54,7 +59,10 @@ var app = builder.Build();
 app.Services.GetRequiredService<IStartupValidator>().Validate();
 
 if (builder.Configuration.GetValue<bool>("Migrations:ApplyOnStartup"))
+{
 	await app.Services.MigrateAuthModuleAsync();
+	await app.Services.MigrateFilesModuleAsync();
+}
 
 app.UseLoggingConfiguration();
 
@@ -72,6 +80,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.MapAuthEndpoints();
+app.MapFilesEndpoints();
+app.MapFoldersEndpoints();
 
 if (app.Environment.IsDevelopment())
 {

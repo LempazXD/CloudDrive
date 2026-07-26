@@ -9,6 +9,8 @@
 		<ProjectReference Include="..\..\Shared\Shared.Api\Shared.Api.csproj"/>
 		<ProjectReference Include="..\..\Modules\Auth\Auth.Infrastructure\Auth.Infrastructure.csproj"/>
 		<ProjectReference Include="..\..\Modules\Auth\Auth.Endpoints\Auth.Endpoints.csproj"/>
+		<ProjectReference Include="..\..\Modules\Files\Files.Infrastructure\Files.Infrastructure.csproj"/>
+		<ProjectReference Include="..\..\Modules\Files\Files.Endpoints\Files.Endpoints.csproj"/>
 	</ItemGroup>
 
 	<ItemGroup>

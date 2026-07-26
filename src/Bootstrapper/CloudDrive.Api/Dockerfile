@@ -13,6 +13,9 @@ COPY ["src/Shared/Shared.Kernel/Shared.Kernel.csproj", "src/Shared/Shared.Kernel
 COPY ["src/Modules/Auth/Auth.Core/Auth.Core.csproj", "src/Modules/Auth/Auth.Core/"]
 COPY ["src/Modules/Auth/Auth.Infrastructure/Auth.Infrastructure.csproj", "src/Modules/Auth/Auth.Infrastructure/"]
 COPY ["src/Modules/Auth/Auth.Endpoints/Auth.Endpoints.csproj", "src/Modules/Auth/Auth.Endpoints/"]
+COPY ["src/Modules/Files/Files.Core/Files.Core.csproj", "src/Modules/Files/Files.Core/"]
+COPY ["src/Modules/Files/Files.Infrastructure/Files.Infrastructure.csproj", "src/Modules/Files/Files.Infrastructure/"]
+COPY ["src/Modules/Files/Files.Endpoints/Files.Endpoints.csproj", "src/Modules/Files/Files.Endpoints/"]
 RUN dotnet restore "src/Bootstrapper/CloudDrive.Api/CloudDrive.Api.csproj"
 COPY . .
 WORKDIR "/src/src/Bootstrapper/CloudDrive.Api"
