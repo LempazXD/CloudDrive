@@ -34,6 +34,7 @@ public static class FilesModuleExtensions
 		services.AddScoped<IFolderRepository, FolderRepository>();
 		services.AddSingleton<IBlobStorage, SeaweedFsBlobStorage>();
 		services.AddScoped<IFilesService, FilesService>();
+		services.AddScoped<IFolderService, FolderService>();
 
 		return services;
 	}

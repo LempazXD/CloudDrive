@@ -23,23 +23,23 @@ public static class FoldersEndpoints
 	}
 
 	private static async Task<Results<Ok<FolderResponse>, ProblemHttpResult>> CreateFolderAsync(
-		CreateFolderRequest request, ClaimsPrincipal user, IFilesService filesService, CancellationToken ct)
+		CreateFolderRequest request, ClaimsPrincipal user, IFolderService folderService, CancellationToken ct)
 	{
-		var result = await filesService.CreateFolderAsync(user.GetOwnerId(), request.ParentFolderId, request.Name, ct);
+		var result = await folderService.CreateFolderAsync(user.GetOwnerId(), request.ParentFolderId, request.Name, ct);
 		return result.Match(f => TypedResults.Ok(ToFolderResponse(f)));
 	}
 
 	private static async Task<Results<Ok<FolderResponse>, ProblemHttpResult>> GetFolderAsync(
-		Guid id, ClaimsPrincipal user, IFilesService filesService, CancellationToken ct)
+		Guid id, ClaimsPrincipal user, IFolderService folderService, CancellationToken ct)
 	{
-		var result = await filesService.GetFolderAsync(user.GetOwnerId(), id, ct);
+		var result = await folderService.GetFolderAsync(user.GetOwnerId(), id, ct);
 		return result.Match(f => TypedResults.Ok(ToFolderResponse(f)));
 	}
 
 	private static async Task<Results<Ok, ProblemHttpResult>> DeleteFolderAsync(
-		Guid id, ClaimsPrincipal user, IFilesService filesService, CancellationToken ct)
+		Guid id, ClaimsPrincipal user, IFolderService folderService, CancellationToken ct)
 	{
-		var result = await filesService.DeleteFolderAsync(user.GetOwnerId(), id, ct);
+		var result = await folderService.DeleteFolderAsync(user.GetOwnerId(), id, ct);
 		return result.Match(TypedResults.Ok);
 	}
 
