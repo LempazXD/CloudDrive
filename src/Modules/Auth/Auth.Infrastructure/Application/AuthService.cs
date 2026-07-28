@@ -99,13 +99,11 @@ internal sealed class AuthService(
 		var signInResult = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
 		if (signInResult.IsLockedOut)
 		{
-			var lockoutEnd = await userManager.GetLockoutEndDateAsync(user);
+			var (error, lockoutEnd) = await BuildLockedOutErrorAsync(user);
 			logger.LogWarning(
 				"Login blocked for user {UserId} ({Login}): account locked out until {LockoutEndUtc}.",
 				user.Id, login, lockoutEnd);
-			return lockoutEnd is { } end
-				? Error.LockedOut("Auth.User.LockedOut", end)
-				: Error.LockedOut("Auth.User.LockedOut");
+			return error;
 		}
 
 		if (!signInResult.Succeeded)
@@ -170,13 +168,11 @@ internal sealed class AuthService(
 
 		if (await userManager.IsLockedOutAsync(user))
 		{
-			var lockoutEnd = await userManager.GetLockoutEndDateAsync(user);
+			var (error, lockoutEnd) = await BuildLockedOutErrorAsync(user);
 			logger.LogWarning(
 				"Refresh blocked for user {UserId}, session {SessionId}: account locked out until {LockoutEndUtc}.",
 				user.Id, existing.SessionId, lockoutEnd);
-			return lockoutEnd is { } end
-				? Error.LockedOut("Auth.User.LockedOut", end)
-				: Error.LockedOut("Auth.User.LockedOut");
+			return error;
 		}
 
 		return await IssueTokensAsync(user, tokenToRotate: existing, ct);
@@ -242,6 +238,15 @@ internal sealed class AuthService(
 		}
 
 		return Result.Success();
+	}
+
+	private async Task<(Error Error, DateTimeOffset? LockoutEndUtc)> BuildLockedOutErrorAsync(ApplicationUser user)
+	{
+		var lockoutEnd = await userManager.GetLockoutEndDateAsync(user);
+		var error = lockoutEnd is { } end
+			? Error.LockedOut("Auth.User.LockedOut", end)
+			: Error.LockedOut("Auth.User.LockedOut");
+		return (error, lockoutEnd);
 	}
 
 	private async Task<Result<AuthTokens>> IssueTokensAsync(
