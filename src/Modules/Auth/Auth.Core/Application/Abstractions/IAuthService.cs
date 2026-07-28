@@ -11,4 +11,11 @@ public interface IAuthService
 	Task<Result<AuthTokens>> RefreshAsync(string refreshToken, CancellationToken ct);
 
 	Task<Result> LogoutAsync(string refreshToken, CancellationToken ct);
+
+	/// <summary>
+	/// Выходит из всех сессий пользователя, определяемого по <paramref name="refreshToken"/>.
+	/// Если <paramref name="keepCurrentSession"/> = true, сессия предъявленного токена не отзывается
+	/// (опция "остаться на текущем устройстве"); иначе отзываются все сессии без исключения.
+	/// </summary>
+	Task<Result> LogoutAllAsync(string refreshToken, bool keepCurrentSession, CancellationToken ct);
 }

@@ -195,6 +195,55 @@ internal sealed class AuthService(
 		return Result.Success();
 	}
 
+	public async Task<Result> LogoutAllAsync(string refreshToken, bool keepCurrentSession, CancellationToken ct)
+	{
+		// В отличие от LogoutAsync, здесь нельзя молча вернуть успех для нераспознанного токена:
+		// без него невозможно определить, чей именно аккаунт разлогинивать.
+		if (string.IsNullOrWhiteSpace(refreshToken))
+			return Result.Failure(Error.Unauthorized("Auth.RefreshToken.Invalid"));
+
+		var hash = RefreshTokenGenerator.Hash(refreshToken);
+		var existing = await refreshTokenRepository.GetByTokenHashAsync(hash, ct);
+		if (existing is null)
+		{
+			logger.LogWarning("Logout-all failed: no refresh token found for the presented value.");
+			return Result.Failure(Error.Unauthorized("Auth.RefreshToken.Invalid"));
+		}
+
+		var now = timeProvider.GetUtcNow();
+
+		if (existing.IsRevoked)
+		{
+			logger.LogWarning(
+				"Logout-all failed for user {UserId}, session {SessionId}: token {TokenId} already revoked.",
+				existing.UserId, existing.SessionId, existing.Id);
+			return Result.Failure(Error.Unauthorized("Auth.RefreshToken.Revoked"));
+		}
+
+		if (existing.IsExpired(now))
+		{
+			logger.LogWarning(
+				"Logout-all failed for user {UserId}, session {SessionId}: token {TokenId} expired.",
+				existing.UserId, existing.SessionId, existing.Id);
+			return Result.Failure(Error.Unauthorized("Auth.RefreshToken.Expired"));
+		}
+
+		if (keepCurrentSession)
+		{
+			await refreshTokenRepository.RevokeAllForUserExceptSessionAsync(existing.UserId, existing.SessionId, now, ct);
+			logger.LogInformation(
+				"User {UserId} logged out of all sessions except the current one ({SessionId}).",
+				existing.UserId, existing.SessionId);
+		}
+		else
+		{
+			await refreshTokenRepository.RevokeAllForUserAsync(existing.UserId, now, ct);
+			logger.LogInformation("User {UserId} logged out of all sessions, including the current one.", existing.UserId);
+		}
+
+		return Result.Success();
+	}
+
 	private async Task<Result<AuthTokens>> IssueTokensAsync(
 		ApplicationUser user, RefreshToken? tokenToRotate, CancellationToken ct)
 	{
