@@ -14,9 +14,9 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
 		builder.Property(t => t.TokenHash).IsRequired().HasMaxLength(64);
 		builder.HasIndex(t => t.TokenHash).IsUnique();
 
-		// Соответствует фильтру (UserId, RevokedAtUtc IS NULL), по которому строит запрос
-		// RevokeAllForUserAsync, поэтому отзыв сканирует только активные токены пользователя,
-		// а не всю его историю.
+		// Соответствует фильтру (UserId, RevokedAtUtc IS NULL), по которому строят запрос
+		// RevokeAllForUserAsync и RevokeAllForUserExceptSessionAsync, поэтому отзыв сканирует
+		// только активные токены пользователя, а не всю его историю.
 		builder.HasIndex(t => t.UserId).HasFilter("\"RevokedAtUtc\" IS NULL");
 
 		// Аналогично - под RevokeSessionAsync, которым реально пользуется reuse-detection.

@@ -26,11 +26,21 @@ public interface IRefreshTokenRepository
 	/// <summary>
 	/// Отзывает все активные refresh-токены пользователя <paramref name="userId"/> всех сессий.
 	/// <para>
-	/// На данный момент вызывающего кода нет - это задел под будущий явный "выйти со всех устройств"
-	/// или отзыв при сбросе пароля.
+	/// Используется явным "выйти со всех устройств" (<c>LogoutAllAsync</c>, без опции остаться в текущей сессии)
+	/// и reuse-detection в <c>RefreshAsync</c> при обнаружении кражи токена.
 	/// </para>
 	/// </summary>
 	Task RevokeAllForUserAsync(Guid userId, DateTimeOffset revokedAtUtc, CancellationToken ct);
+
+	/// <summary>
+	/// Отзывает все активные refresh-токены пользователя <paramref name="userId"/>,
+	/// кроме токенов сессии <paramref name="exceptSessionId"/>.
+	/// <para>
+	/// Используется явным "выйти со всех устройств" (<c>LogoutAllAsync</c>) с опцией остаться в текущей сессии.
+	/// </para>
+	/// </summary>
+	Task RevokeAllForUserExceptSessionAsync(
+		Guid userId, Guid exceptSessionId, DateTimeOffset revokedAtUtc, CancellationToken ct);
 
 	/// <summary> Отзывает все активные refresh-токены сессии <paramref name="sessionId"/> </summary>
 	Task RevokeSessionAsync(Guid sessionId, DateTimeOffset revokedAtUtc, CancellationToken ct);
