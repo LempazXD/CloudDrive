@@ -198,61 +198,6 @@ internal sealed class FilesService(
 		return Result.Success();
 	}
 
-	public async Task<Result<FolderSummary>> CreateFolderAsync(
-		Guid ownerId, Guid? parentFolderId, string name, CancellationToken ct)
-	{
-		if (string.IsNullOrWhiteSpace(name))
-			return Error.Validation("Files.Folder.InvalidName");
-
-		if (parentFolderId is { } parentId && !await folderRepository.ExistsAsync(parentId, ownerId, ct))
-			return Error.NotFound("Files.Folder.NotFound");
-
-		var folder = Folder.Create(guidProvider.CreateVersion7(), ownerId, parentFolderId, name, timeProvider.GetUtcNow());
-
-		try
-		{
-			await folderRepository.AddAsync(folder, ct);
-			await folderRepository.SaveChangesAsync(ct);
-		}
-		catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
-		{
-			logger.LogWarning(
-				"Create folder hit a unique-constraint race on name {Name} under parent {ParentFolderId} for owner {OwnerId}.",
-				name, parentFolderId, ownerId);
-			return Error.Conflict("Files.Folder.NameConflict");
-		}
-
-		logger.LogInformation("Folder {FolderId} created for owner {OwnerId}.", folder.Id, ownerId);
-
-		return Result.Success(new FolderSummary(folder.Id, folder.ParentFolderId, folder.Name, folder.CreatedAtUtc));
-	}
-
-	public async Task<Result<FolderSummary>> GetFolderAsync(Guid ownerId, Guid folderId, CancellationToken ct)
-	{
-		var folder = await folderRepository.GetByIdAsync(folderId, ownerId, ct);
-		if (folder is null)
-			return Error.NotFound("Files.Folder.NotFound");
-
-		return Result.Success(new FolderSummary(folder.Id, folder.ParentFolderId, folder.Name, folder.CreatedAtUtc));
-	}
-
-	// TODO: каскадное удаление содержимого папки не реализовано - удаление блокируется, если не пуста
-	public async Task<Result> DeleteFolderAsync(Guid ownerId, Guid folderId, CancellationToken ct)
-	{
-		var folder = await folderRepository.GetByIdAsync(folderId, ownerId, ct);
-		if (folder is null)
-			return Result.Failure(Error.NotFound("Files.Folder.NotFound"));
-
-		if (await folderRepository.HasSubfoldersAsync(folderId, ct) || await storedFileRepository.ExistsInFolderAsync(folderId, ct))
-			return Result.Failure(Error.Conflict("Files.Folder.NotEmpty"));
-
-		await folderRepository.DeleteAsync(folderId, ownerId, ct);
-
-		logger.LogInformation("Folder {FolderId} deleted for owner {OwnerId}.", folderId, ownerId);
-
-		return Result.Success();
-	}
-
 	private static FileSummary ToSummary(StoredFile file) => new(
 		file.Id, file.FolderId, file.OriginalFileName, file.ContentType, file.SizeBytes, file.Status, file.CreatedAtUtc);
 

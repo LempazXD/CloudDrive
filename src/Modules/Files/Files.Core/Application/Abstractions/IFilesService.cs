@@ -23,10 +23,4 @@ public interface IFilesService
 	Task<Result<string>> GetDownloadUrlAsync(Guid ownerId, Guid fileId, CancellationToken ct);
 
 	Task<Result> DeleteFileAsync(Guid ownerId, Guid fileId, CancellationToken ct);
-
-	Task<Result<FolderSummary>> CreateFolderAsync(Guid ownerId, Guid? parentFolderId, string name, CancellationToken ct);
-
-	Task<Result<FolderSummary>> GetFolderAsync(Guid ownerId, Guid folderId, CancellationToken ct);
-
-	Task<Result> DeleteFolderAsync(Guid ownerId, Guid folderId, CancellationToken ct);
 }
