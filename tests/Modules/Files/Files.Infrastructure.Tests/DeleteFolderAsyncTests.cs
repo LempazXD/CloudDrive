@@ -11,7 +11,7 @@ public sealed class DeleteFolderAsyncTests
 	[Fact]
 	public async Task DeleteFolderAsync_UnknownFolder_ReturnsNotFound()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		harness.FolderRepository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
 			.Returns((Folder?)null);
 		var sut = harness.CreateSut();
@@ -25,7 +25,7 @@ public sealed class DeleteFolderAsyncTests
 	[Fact]
 	public async Task DeleteFolderAsync_HasSubfolders_ReturnsNotEmpty()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		var ownerId = Guid.NewGuid();
 		var folder = Folder.Create(Guid.NewGuid(), ownerId, null, "Photos", harness.TimeProvider.GetUtcNow());
 		harness.FolderRepository.GetByIdAsync(folder.Id, ownerId, Arg.Any<CancellationToken>()).Returns(folder);
@@ -42,7 +42,7 @@ public sealed class DeleteFolderAsyncTests
 	[Fact]
 	public async Task DeleteFolderAsync_HasFiles_ReturnsNotEmpty()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		var ownerId = Guid.NewGuid();
 		var folder = Folder.Create(Guid.NewGuid(), ownerId, null, "Photos", harness.TimeProvider.GetUtcNow());
 		harness.FolderRepository.GetByIdAsync(folder.Id, ownerId, Arg.Any<CancellationToken>()).Returns(folder);
@@ -59,7 +59,7 @@ public sealed class DeleteFolderAsyncTests
 	[Fact]
 	public async Task DeleteFolderAsync_Empty_DeletesFolder()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		var ownerId = Guid.NewGuid();
 		var folder = Folder.Create(Guid.NewGuid(), ownerId, null, "Photos", harness.TimeProvider.GetUtcNow());
 		harness.FolderRepository.GetByIdAsync(folder.Id, ownerId, Arg.Any<CancellationToken>()).Returns(folder);

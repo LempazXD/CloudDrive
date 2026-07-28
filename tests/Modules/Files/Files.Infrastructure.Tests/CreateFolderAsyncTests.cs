@@ -10,7 +10,7 @@ public sealed class CreateFolderAsyncTests
 	[Fact]
 	public async Task CreateFolderAsync_EmptyName_ReturnsInvalidName()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		var sut = harness.CreateSut();
 
 		var result = await sut.CreateFolderAsync(Guid.NewGuid(), null, "   ", CancellationToken.None);
@@ -22,7 +22,7 @@ public sealed class CreateFolderAsyncTests
 	[Fact]
 	public async Task CreateFolderAsync_UnknownParent_ReturnsFolderNotFound()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		var parentId = Guid.NewGuid();
 		harness.FolderRepository.ExistsAsync(parentId, Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns(false);
 		var sut = harness.CreateSut();
@@ -36,7 +36,7 @@ public sealed class CreateFolderAsyncTests
 	[Fact]
 	public async Task CreateFolderAsync_Valid_ReturnsFolderSummary()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		var ownerId = Guid.NewGuid();
 		var folderId = Guid.NewGuid();
 		harness.GuidProvider.CreateVersion7().Returns(folderId);

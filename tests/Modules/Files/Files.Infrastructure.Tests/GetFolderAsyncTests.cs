@@ -11,7 +11,7 @@ public sealed class GetFolderAsyncTests
 	[Fact]
 	public async Task GetFolderAsync_UnknownFolder_ReturnsNotFound()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		harness.FolderRepository.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
 			.Returns((Folder?)null);
 		var sut = harness.CreateSut();
@@ -25,7 +25,7 @@ public sealed class GetFolderAsyncTests
 	[Fact]
 	public async Task GetFolderAsync_Found_ReturnsFolderSummary()
 	{
-		var harness = new FilesServiceTestHarness();
+		var harness = new FolderServiceTestHarness();
 		var ownerId = Guid.NewGuid();
 		var folder = Folder.Create(Guid.NewGuid(), ownerId, null, "Photos", harness.TimeProvider.GetUtcNow());
 		harness.FolderRepository.GetByIdAsync(folder.Id, ownerId, Arg.Any<CancellationToken>()).Returns(folder);
