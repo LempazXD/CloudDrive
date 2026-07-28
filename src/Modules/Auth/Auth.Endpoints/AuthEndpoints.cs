@@ -19,6 +19,7 @@ public static class AuthEndpoints
 		group.MapPost("/login", LoginAsync).RequireRateLimiting(AuthRateLimitPolicies.Login);
 		group.MapPost("/refresh", RefreshAsync);
 		group.MapPost("/logout", LogoutAsync);
+		group.MapPost("/logout-all", LogoutAllAsync);
 
 		return app;
 	}
@@ -48,6 +49,13 @@ public static class AuthEndpoints
 		LogoutRequest request, IAuthService authService, CancellationToken ct)
 	{
 		var result = await authService.LogoutAsync(request.RefreshToken, ct);
+		return result.Match(TypedResults.Ok);
+	}
+
+	private static async Task<Results<Ok, ProblemHttpResult>> LogoutAllAsync(
+		LogoutAllRequest request, IAuthService authService, CancellationToken ct)
+	{
+		var result = await authService.LogoutAllAsync(request.RefreshToken, request.KeepCurrentSession, ct);
 		return result.Match(TypedResults.Ok);
 	}
 
