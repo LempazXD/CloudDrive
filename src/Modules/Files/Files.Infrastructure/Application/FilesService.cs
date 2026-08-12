@@ -120,9 +120,10 @@ internal sealed class FilesService(
 			return Error.Conflict("Files.File.AlreadyCompleted");
 		}
 
+		BlobObjectInfo blobInfo;
 		try
 		{
-			await blobStorage.CompleteUploadAsync(file.StorageKey, file.UploadId, parts, ct);
+			blobInfo = await blobStorage.CompleteUploadAsync(file.StorageKey, file.UploadId, parts, ct);
 		}
 		catch (AmazonS3Exception ex)
 		{
@@ -134,12 +135,15 @@ internal sealed class FilesService(
 			return Error.Conflict("Files.File.CompletionFailed");
 		}
 
-		await storedFileRepository.MarkCompletedAsync(fileId, timeProvider.GetUtcNow(), ct);
+		// SizeBytes фиксируется по факту из хранилища, а не по декларации клиента на initiate (как
+		// Sha256Declared) - тело PUT/частей ничем не привязано к заявленному sizeBytes, так что это
+		// единственный источник истины для реального размера объекта.
+		await storedFileRepository.MarkCompletedAsync(fileId, blobInfo.SizeBytes, timeProvider.GetUtcNow(), ct);
 
 		logger.LogInformation("File {FileId} completed for owner {OwnerId}.", fileId, ownerId);
 
 		return Result.Success(new FileSummary(
-			file.Id, file.FolderId, file.OriginalFileName, file.ContentType, file.SizeBytes,
+			file.Id, file.FolderId, file.OriginalFileName, file.ContentType, blobInfo.SizeBytes,
 			FileStatus.Completed, file.CreatedAtUtc));
 	}
 

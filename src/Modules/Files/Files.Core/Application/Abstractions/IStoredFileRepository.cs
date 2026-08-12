@@ -21,7 +21,7 @@ public interface IStoredFileRepository
 	/// </summary>
 	Task<bool> TryCompleteAsync(Guid id, Guid ownerId, DateTimeOffset nowUtc, TimeSpan staleAfter, CancellationToken ct);
 
-	Task MarkCompletedAsync(Guid id, DateTimeOffset nowUtc, CancellationToken ct);
+	Task MarkCompletedAsync(Guid id, long actualSizeBytes, DateTimeOffset nowUtc, CancellationToken ct);
 
 	Task MarkFailedAsync(Guid id, DateTimeOffset nowUtc, CancellationToken ct);
 

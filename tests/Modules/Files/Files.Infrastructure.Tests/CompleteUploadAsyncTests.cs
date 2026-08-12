@@ -91,7 +91,7 @@ public sealed class CompleteUploadAsyncTests
 		Assert.Equal("Files.File.CompletionFailed", result.Error!.Code);
 		_ = harness.StoredFileRepository.Received(1).MarkFailedAsync(file.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
 		_ = harness.StoredFileRepository.DidNotReceive().MarkCompletedAsync(
-			Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+			Arg.Any<Guid>(), Arg.Any<long>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
 	}
 
 	[Fact]
@@ -99,6 +99,9 @@ public sealed class CompleteUploadAsyncTests
 	{
 		var harness = new FilesServiceTestHarness();
 		var ownerId = Guid.NewGuid();
+		// Заявленный на initiate размер (10) намеренно отличается от того, что реально лежит в
+		// хранилище (12345) - CompleteUploadAsync должен вернуть и сохранить фактический размер,
+		// а не декларацию клиента (в отличие от Sha256Declared, который сознательно не сверяется).
 		var file = StoredFile.Create(
 			Guid.NewGuid(), ownerId, null, "a.txt", "text/plain", 10,
 			ValidSha256, "key", null, expectedPartCount: 1, harness.TimeProvider.GetUtcNow());
@@ -108,13 +111,14 @@ public sealed class CompleteUploadAsyncTests
 			.Returns(true);
 		harness.BlobStorage.CompleteUploadAsync(
 				file.StorageKey, file.UploadId, Arg.Any<IReadOnlyList<BlobUploadedPart>>(), Arg.Any<CancellationToken>())
-			.Returns(new BlobObjectInfo("etag-abc", 10));
+			.Returns(new BlobObjectInfo("etag-abc", 12345));
 		var sut = harness.CreateSut();
 
 		var result = await sut.CompleteUploadAsync(ownerId, file.Id, [], CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
 		Assert.Equal(FileStatus.Completed, result.Value.Status);
-		_ = harness.StoredFileRepository.Received(1).MarkCompletedAsync(file.Id, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+		Assert.Equal(12345, result.Value.SizeBytes);
+		_ = harness.StoredFileRepository.Received(1).MarkCompletedAsync(file.Id, 12345, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
 	}
 }

@@ -50,12 +50,13 @@ internal sealed class StoredFileRepository(FilesDbContext db) : IStoredFileRepos
 		return rowsAffected == 1;
 	}
 
-	public async Task MarkCompletedAsync(Guid id, DateTimeOffset nowUtc, CancellationToken ct) =>
+	public async Task MarkCompletedAsync(Guid id, long actualSizeBytes, DateTimeOffset nowUtc, CancellationToken ct) =>
 		await db.StoredFiles
 			.Where(f => f.Id == id && f.Status == FileStatus.Completing)
 			.ExecuteUpdateAsync(
 				s => s
 					.SetProperty(f => f.Status, FileStatus.Completed)
+					.SetProperty(f => f.SizeBytes, actualSizeBytes)
 					.SetProperty(f => f.UpdatedAtUtc, nowUtc),
 				ct);
 
