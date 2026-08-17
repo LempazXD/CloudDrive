@@ -16,6 +16,8 @@ public static class AuthEndpoints
 		var group = app.MapGroup("/api/auth").WithTags("Auth");
 
 		group.MapPost("/register", RegisterAsync).RequireRateLimiting(AuthRateLimitPolicies.Register);
+		group.MapPost("/confirm-registration", ConfirmRegistrationAsync)
+			.RequireRateLimiting(AuthRateLimitPolicies.ConfirmRegistration);
 		group.MapPost("/login", LoginAsync).RequireRateLimiting(AuthRateLimitPolicies.Login);
 		group.MapPost("/refresh", RefreshAsync);
 		group.MapPost("/logout", LogoutAsync);
@@ -28,7 +30,14 @@ public static class AuthEndpoints
 		RegisterRequest request, IAuthService authService, CancellationToken ct)
 	{
 		var result = await authService.RegisterAsync(request.Username, request.Email, request.Password, ct);
-		return result.Match(s => TypedResults.Ok(new RegisterResponse(s.UserId, s.Username, s.Email)));
+		return result.Match(s => TypedResults.Ok(new RegisterResponse(s.Email, s.CodeExpiresAtUtc)));
+	}
+
+	private static async Task<Results<Ok<AuthTokensResponse>, ProblemHttpResult>> ConfirmRegistrationAsync(
+		ConfirmRegistrationRequest request, IAuthService authService, CancellationToken ct)
+	{
+		var result = await authService.ConfirmRegistrationAsync(request.Email, request.Code, ct);
+		return result.Match(ToResponse);
 	}
 
 	private static async Task<Results<Ok<AuthTokensResponse>, ProblemHttpResult>> LoginAsync(

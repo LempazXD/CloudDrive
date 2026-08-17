@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using Auth.Core.Application.Abstractions;
 using Auth.Infrastructure.Application;
 using Auth.Infrastructure.Caching;
+using Auth.Infrastructure.Email;
 using Auth.Infrastructure.Identity;
 using Auth.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,12 +25,15 @@ public static class AuthModuleExtensions
 		services.AddJwtOptions(configuration);
 		services.AddRateLimitingOptions(configuration);
 		services.AddIdentityConfigOptions(configuration);
+		services.AddSmtpOptions(configuration);
+		services.AddRegistrationOptions(configuration);
 
 		services.AddOptions<RateLimiterOptions>()
 			.Configure<IOptions<RateLimitingOptions>>((rlOptions, authRateLimiting) =>
 			{
 				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Login, authRateLimiting.Value.Login);
 				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Register, authRateLimiting.Value.Register);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ConfirmRegistration, authRateLimiting.Value.ConfirmRegistration);
 			});
 
 		services.AddDbContext<AuthDbContext>((sp, options) =>
@@ -67,7 +71,9 @@ public static class AuthModuleExtensions
 		services.AddMemoryCache();
 		services.AddSingleton<IJwtTokenGenerator, JwtTokenGenerator>();
 		services.AddSingleton<IRefreshTokenReplayCache, RefreshTokenReplayCache>();
+		services.AddSingleton<IEmailSender, SmtpEmailSender>();
 		services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+		services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepository>();
 		services.AddScoped<IAuthService, AuthService>();
 
 		return services;
@@ -100,6 +106,27 @@ public static class AuthModuleExtensions
 			.Validate(o => o.Login.Window > TimeSpan.Zero, "RateLimiting:Login:Window must be positive.")
 			.Validate(o => o.Register.PermitLimit > 0, "RateLimiting:Register:PermitLimit must be positive.")
 			.Validate(o => o.Register.Window > TimeSpan.Zero, "RateLimiting:Register:Window must be positive.")
+			.Validate(o => o.ConfirmRegistration.PermitLimit > 0, "RateLimiting:ConfirmRegistration:PermitLimit must be positive.")
+			.Validate(o => o.ConfirmRegistration.Window > TimeSpan.Zero, "RateLimiting:ConfirmRegistration:Window must be positive.")
+			.ValidateOnStart();
+	}
+
+	private static void AddSmtpOptions(this IServiceCollection services, IConfiguration configuration)
+	{
+		services.AddOptions<SmtpOptions>()
+			.Bind(configuration.GetSection("Smtp"))
+			.Validate(o => !string.IsNullOrWhiteSpace(o.Host), "Smtp:Host is required.")
+			.Validate(o => o.Port is > 0 and <= 65535, "Smtp:Port must be a valid port number.")
+			.Validate(o => !string.IsNullOrWhiteSpace(o.FromAddress), "Smtp:FromAddress is required.")
+			.ValidateOnStart();
+	}
+
+	private static void AddRegistrationOptions(this IServiceCollection services, IConfiguration configuration)
+	{
+		services.AddOptions<RegistrationOptions>()
+			.Bind(configuration.GetSection("Registration"))
+			.Validate(o => o.CodeLifetime > TimeSpan.Zero, "Registration:CodeLifetime must be positive.")
+			.Validate(o => o.MaxAttempts > 0, "Registration:MaxAttempts must be positive.")
 			.ValidateOnStart();
 	}
 

@@ -5,6 +5,8 @@ public sealed class RateLimitingOptions
 	public required RateLimitRuleOptions Login { get; init; }
 
 	public required RateLimitRuleOptions Register { get; init; }
+
+	public required RateLimitRuleOptions ConfirmRegistration { get; init; }
 }
 
 public sealed class RateLimitRuleOptions

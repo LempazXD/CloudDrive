@@ -11,6 +11,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 {
 	public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+	public DbSet<PendingRegistration> PendingRegistrations => Set<PendingRegistration>();
+
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
 		base.OnModelCreating(builder);
@@ -18,5 +20,6 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 		builder.HasDefaultSchema("auth");
 		builder.ApplyConfiguration(new RefreshTokenConfiguration());
 		builder.ApplyConfiguration(new ApplicationUserConfiguration());
+		builder.ApplyConfiguration(new PendingRegistrationConfiguration());
 	}
 }

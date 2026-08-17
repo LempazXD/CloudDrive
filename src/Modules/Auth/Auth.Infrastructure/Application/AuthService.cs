@@ -18,12 +18,15 @@ internal sealed class AuthService(
 	IJwtTokenGenerator jwtTokenGenerator,
 	IRefreshTokenRepository refreshTokenRepository,
 	IRefreshTokenReplayCache refreshTokenReplayCache,
+	IPendingRegistrationRepository pendingRegistrationRepository,
+	IEmailSender emailSender,
 	IGuidProvider guidProvider,
 	TimeProvider timeProvider,
 	IOptions<JwtOptions> jwtOptions,
+	IOptions<RegistrationOptions> registrationOptions,
 	ILogger<AuthService> logger) : IAuthService
 {
-	public async Task<Result<AuthUserSummary>> RegisterAsync(
+	public async Task<Result<RegistrationCodeSent>> RegisterAsync(
 		string username,
 		string email,
 		string password,
@@ -38,48 +41,175 @@ internal sealed class AuthService(
 		if (string.IsNullOrWhiteSpace(password))
 			return Error.Validation("Auth.User.WeakPassword");
 
-		var user = new ApplicationUser
-		{
-			Id = guidProvider.CreateVersion7(),
-			UserName = username,
-			Email = email
-		};
+		// Транзитный пользователь только для валидаторов Identity; никогда не сохраняется.
+		var transientUser = new ApplicationUser { UserName = username, Email = email };
+		var validation = await ValidateTransientUserAsync(transientUser, password);
+
+		var now = timeProvider.GetUtcNow();
+		var codeExpiresAtUtc = now.Add(registrationOptions.Value.CodeLifetime);
+		var response = new RegistrationCodeSent(email, codeExpiresAtUtc);
+
+		if (!validation.Succeeded)
+			return validation.ToResult(response, "Auth.User.RegistrationFailed", logger);
+
+		var passwordHash = userManager.PasswordHasher.HashPassword(transientUser, password);
+		var rawCode = RegistrationCodeGenerator.GenerateRaw();
+		var normalizedEmail = userManager.NormalizeEmail(email)!;
+
+		await pendingRegistrationRepository.DeleteExpiredAsync(now, ct);
+
+		var existingPending = await pendingRegistrationRepository.GetByNormalizedEmailAsync(normalizedEmail, ct);
+		if (existingPending is not null)
+			await pendingRegistrationRepository.RemoveAsync(existingPending, ct);
+
+		var pending = PendingRegistration.Create(
+			guidProvider.CreateVersion7(),
+			normalizedEmail,
+			email,
+			username,
+			passwordHash,
+			RegistrationCodeGenerator.Hash(rawCode),
+			now,
+			codeExpiresAtUtc);
 
 		try
 		{
-			var result = await userManager.CreateAsync(user, password);
-			if (result.Succeeded)
-				logger.LogInformation("User {UserId} registered with username {Username}.", user.Id, username);
-
-			return result.ToResult(new AuthUserSummary(user.Id, username, email), "Auth.User.RegistrationFailed", logger);
+			await pendingRegistrationRepository.AddAsync(pending, ct);
+			await pendingRegistrationRepository.SaveChangesAsync(ct);
 		}
 		catch (DbUpdateException ex) when (ex.InnerException is PostgresException
 		                                   {
 			                                   SqlState: PostgresErrorCodes.UniqueViolation
 		                                   } pgEx)
 		{
-			// UserManager.CreateAsync (RequireUniqueEmail): - check и insert не атомарны.
-			// Два параллельных /register с одинаковым email могут оба пройти проверку до того, как
-			// первый из них будет вставлен, и тогда второй INSERT упадёт на уникальном индексе в БД
-			// (ApplicationUserConfiguration - EmailIndex/UserNameIndex), а не на штатной валидации Identity.
-			// Этот catch - подстраховка на такой случай: сводит гонку к тому же Conflict, что и обычные
-			// DuplicateUserName/DuplicateEmail из IdentityResultExtensions.
+			// Гонка двух параллельных /register с одинаковым email до его подтверждения - тот же
+			// Conflict, что и для уже существующего аккаунта: клиенту в обоих случаях остаётся
+			// только повторить попытку.
+			if (pgEx.ConstraintName != "PendingRegistrationEmailIndex")
+				throw;
+
+			logger.LogWarning("Registration initiation hit a unique-constraint race on email {Email}.", email);
+			return Error.Conflict("Auth.User.EmailAlreadyExists");
+		}
+
+		await emailSender.SendRegistrationCodeAsync(email, rawCode, registrationOptions.Value.CodeLifetime, ct);
+		logger.LogInformation("Registration code issued for {Email}.", email);
+
+		return Result.Success(response);
+	}
+
+	public async Task<Result<AuthTokens>> ConfirmRegistrationAsync(string email, string code, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code))
+			return Error.NotFound("Auth.RegistrationCode.NotFound");
+
+		var normalizedEmail = userManager.NormalizeEmail(email)!;
+		var pending = await pendingRegistrationRepository.GetByNormalizedEmailAsync(normalizedEmail, ct);
+		if (pending is null)
+		{
+			logger.LogWarning("Registration confirmation failed for {Email}: no pending registration found.", email);
+			return Error.NotFound("Auth.RegistrationCode.NotFound");
+		}
+
+		var now = timeProvider.GetUtcNow();
+		if (pending.IsExpired(now))
+		{
+			await pendingRegistrationRepository.RemoveAsync(pending, ct);
+			await pendingRegistrationRepository.SaveChangesAsync(ct);
+			logger.LogWarning("Registration confirmation failed for {Email}: code expired.", email);
+			return Error.Unauthorized("Auth.RegistrationCode.Expired");
+		}
+
+		if (RegistrationCodeGenerator.Hash(code) != pending.CodeHash)
+		{
+			pending.RecordFailedAttempt();
+
+			if (pending.HasExceededAttempts(registrationOptions.Value.MaxAttempts))
+			{
+				await pendingRegistrationRepository.RemoveAsync(pending, ct);
+				await pendingRegistrationRepository.SaveChangesAsync(ct);
+				logger.LogWarning("Registration confirmation for {Email} exceeded the maximum attempt count.", email);
+				return Error.Validation("Auth.RegistrationCode.TooManyAttempts");
+			}
+
+			await pendingRegistrationRepository.SaveChangesAsync(ct);
+			logger.LogWarning(
+				"Registration confirmation failed for {Email}: incorrect code (attempt {AttemptCount}).",
+				email, pending.AttemptCount);
+			return Error.Unauthorized("Auth.RegistrationCode.Invalid");
+		}
+
+		var user = new ApplicationUser
+		{
+			Id = guidProvider.CreateVersion7(),
+			UserName = pending.Username,
+			Email = pending.Email,
+			EmailConfirmed = true,
+			PasswordHash = pending.PasswordHash
+		};
+
+		IdentityResult createResult;
+		try
+		{
+			// Однопараметровый CreateAsync: валидирует (свежая проверка уникальности) и персистит,
+			// но не хэширует пароль повторно - PasswordHash уже посчитан на этапе RegisterAsync.
+			createResult = await userManager.CreateAsync(user);
+		}
+		catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+		                                   {
+			                                   SqlState: PostgresErrorCodes.UniqueViolation
+		                                   } pgEx)
+		{
 			switch (pgEx.ConstraintName)
 			{
 				case "UserNameIndex":
 					logger.LogWarning(
-						"Registration hit a unique-constraint race on username {Username}; Identity's pre-check passed but the database insert lost the race.",
-						username);
+						"Registration confirmation hit a unique-constraint race on username {Username}.",
+						pending.Username);
 					return Error.Conflict("Auth.User.UsernameAlreadyExists");
 				case "EmailIndex":
 					logger.LogWarning(
-						"Registration hit a unique-constraint race on email {Email}; Identity's pre-check passed but the database insert lost the race.",
-						email);
+						"Registration confirmation hit a unique-constraint race on email {Email}.", pending.Email);
 					return Error.Conflict("Auth.User.EmailAlreadyExists");
 				default:
 					throw;
 			}
 		}
+
+		if (!createResult.Succeeded)
+			return createResult.ToResult("Auth.User.RegistrationFailed", logger).Error!;
+
+		await pendingRegistrationRepository.RemoveAsync(pending, ct);
+		await pendingRegistrationRepository.SaveChangesAsync(ct);
+
+		logger.LogInformation(
+			"User {UserId} completed registration via confirmation code for {Email}.", user.Id, email);
+
+		return await IssueTokensAsync(user, tokenToRotate: null, ct);
+	}
+
+	private async Task<IdentityResult> ValidateTransientUserAsync(ApplicationUser transientUser, string password)
+	{
+		var errors = new List<IdentityError>();
+
+		// Пароль перед пользователем - тот же порядок, что и внутри UserManager.CreateAsync(user, password)
+		// сегодня (UpdatePasswordHash до CreateAsync(user)), чтобы приоритет ошибок при нескольких
+		// одновременных нарушениях не менялся по сравнению с прежним поведением.
+		foreach (var validator in userManager.PasswordValidators)
+		{
+			var result = await validator.ValidateAsync(userManager, transientUser, password);
+			if (!result.Succeeded)
+				errors.AddRange(result.Errors);
+		}
+
+		foreach (var validator in userManager.UserValidators)
+		{
+			var result = await validator.ValidateAsync(userManager, transientUser);
+			if (!result.Succeeded)
+				errors.AddRange(result.Errors);
+		}
+
+		return errors.Count == 0 ? IdentityResult.Success : IdentityResult.Failed(errors.ToArray());
 	}
 
 	public async Task<Result<AuthTokens>> LoginAsync(string login, string password, CancellationToken ct)

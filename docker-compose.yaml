@@ -17,6 +17,10 @@ services:
             - ObjectStorage__AccessKey=${ObjectStorage__AccessKey}
             - ObjectStorage__SecretKey=${ObjectStorage__SecretKey}
             - ObjectStorage__Bucket=${ObjectStorage__Bucket}
+            - Smtp__Host=clouddrive.mail
+            - Smtp__Port=1025
+            - Smtp__FromAddress=noreply@clouddrive.local
+            - Smtp__FromName=CloudDrive
         depends_on:
             clouddrive.database:
                 condition: service_healthy
@@ -24,6 +28,8 @@ services:
                 condition: service_started
             clouddrive.storage:
                 condition: service_healthy
+            clouddrive.mail:
+                condition: service_started
         restart: unless-stopped
 
     clouddrive.database:
@@ -74,4 +80,12 @@ services:
             timeout: 5s
             retries: 5
             start_period: 10s
+        restart: unless-stopped
+
+    clouddrive.mail:
+        image: axllent/mailpit
+        container_name: clouddrive.mail
+        ports:
+            - "8025:8025"
+            - "1025:1025"
         restart: unless-stopped

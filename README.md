@@ -4,7 +4,7 @@
 
 Приложение построено как **REST API на ASP.NET Core (.NET 10)**, использует **PostgreSQL** в качестве базы данных и отдаёт ответы в формате [ProblemDetails (RFC 9457)](https://www.rfc-editor.org/rfc/rfc9457) с локализацией сообщений об ошибках (`ru` / `en`). Интерактивная документация API — через [Scalar](https://scalar.com/) поверх OpenAPI.
 
-Архитектурно: **модульный монолит**: композиционный корень — `src/Bootstrapper/CloudDrive.Api`, бизнес-функциональность выносится в независимые модули (`src/Modules/`), а общие примитивы — в `src/Shared/`. Реализованы модули **Auth** (регистрация, вход, JWT + refresh-токены) и **Files** (папки, загрузка и скачивание файлов через presigned URL в S3-совместимое объектное хранилище).
+Архитектурно: **модульный монолит**: композиционный корень — `src/Bootstrapper/CloudDrive.Api`, бизнес-функциональность выносится в независимые модули (`src/Modules/`), а общие примитивы — в `src/Shared/`. Реализованы модули **Auth** (регистрация с подтверждением email, вход, JWT + refresh-токены) и **Files** (папки, загрузка и скачивание файлов через presigned URL в S3-совместимое объектное хранилище).
 
 ## Стек
 
@@ -14,6 +14,7 @@
 | База данных | PostgreSQL, EF Core, Npgsql |
 | Объектное хранилище | SeaweedFS (S3-совместимое), AWSSDK.S3 |
 | Аутентификация | ASP.NET Core Identity, JWT |
+| Email | MailKit, [Mailpit](https://mailpit.axllent.org/) (локальный перехват писем) |
 | Ошибки | ProblemDetails (RFC 9457) с локализацией (`ru` / `en`) |
 | Документация API | OpenAPI, [Scalar](https://scalar.com/) |
 | Логирование | Serilog → [Seq](https://datalust.co/seq) |
@@ -79,16 +80,17 @@ docker compose up --build
 - PostgreSQL: `localhost:5433` (внутри сети контейнеров — `clouddrive.database:5432`)
 - Объектное хранилище (S3 API): `localhost:8333` (внутри сети контейнеров — `clouddrive.storage:8333`)
 - Seq (логи, трейсы, метрики): <http://localhost:5341>
+- Mailpit (письма с кодом подтверждения регистрации): <http://localhost:8025>
 
 > Scalar UI (`/scalar`) и документ OpenAPI доступны только в окружении Development (`app.Environment.IsDevelopment()`). В `docker-compose.yaml` для сервиса `clouddrive.api` задан `ASPNETCORE_ENVIRONMENT=Development`, поэтому в локальном стеке они доступны. Сам образ окружение не фиксирует (по умолчанию Production) — при развёртывании в другом окружении Scalar/OpenAPI, а также Developer Exception Page, включаться не будут.
 
 ### Способ B — разработка: API на хосте + PostgreSQL, Seq и объектное хранилище в Docker
 
-БД, Seq и объектное хранилище поднимаются в контейнерах, API запускается на хосте через `dotnet run`. Требует все user-secret'ы из шага 2 (строку подключения — с портом `5433`, ключ подписи JWT, и настройки объектного хранилища — с портом `8333`).
+БД, Seq, объектное хранилище и локальный перехватчик почты поднимаются в контейнерах, API запускается на хосте через `dotnet run`. Требует все user-secret'ы из шага 2 (строку подключения — с портом `5433`, ключ подписи JWT, и настройки объектного хранилища — с портом `8333`); для почты (Mailpit) user-secrets не нужны — `Smtp:Host`/`Smtp:Port` по умолчанию указывают на неё в `appsettings.Development.json`.
 
 ```bash
-# 1. поднять БД, Seq и объектное хранилище, дождаться готовности
-docker compose up -d clouddrive.database clouddrive.seq clouddrive.storage
+# 1. поднять БД, Seq, объектное хранилище и Mailpit, дождаться готовности
+docker compose up -d clouddrive.database clouddrive.seq clouddrive.storage clouddrive.mail
 
 # 2. запустить API на хосте
 dotnet run --project src/Bootstrapper/CloudDrive.Api
@@ -99,5 +101,6 @@ dotnet run --project src/Bootstrapper/CloudDrive.Api
 - PostgreSQL: `localhost:5433`
 - Объектное хранилище (S3 API): `localhost:8333`
 - Seq (логи, трейсы, метрики): <http://localhost:5341>
+- Mailpit (письма с кодом подтверждения регистрации): <http://localhost:8025>
 
 > Альтернатива — **локально установленный** PostgreSQL вместо контейнера: запустите его на `localhost:5432` и укажите порт `5432` в user-secret (шаг 2).

@@ -10,13 +10,17 @@ namespace Auth.Infrastructure.Tests.TestSupport;
 
 internal static class IdentityMockFactory
 {
-	public static UserManager<ApplicationUser> CreateUserManager(IUserStore<ApplicationUser> store) =>
+	public static UserManager<ApplicationUser> CreateUserManager(
+		IUserStore<ApplicationUser> store,
+		IPasswordHasher<ApplicationUser>? passwordHasher = null,
+		IEnumerable<IUserValidator<ApplicationUser>>? userValidators = null,
+		IEnumerable<IPasswordValidator<ApplicationUser>>? passwordValidators = null) =>
 		Substitute.For<UserManager<ApplicationUser>>(
 			store,
 			Options.Create(new IdentityOptions()),
-			Substitute.For<IPasswordHasher<ApplicationUser>>(),
-			Array.Empty<IUserValidator<ApplicationUser>>(),
-			Array.Empty<IPasswordValidator<ApplicationUser>>(),
+			passwordHasher ?? Substitute.For<IPasswordHasher<ApplicationUser>>(),
+			userValidators ?? Array.Empty<IUserValidator<ApplicationUser>>(),
+			passwordValidators ?? Array.Empty<IPasswordValidator<ApplicationUser>>(),
 			Substitute.For<ILookupNormalizer>(),
 			new IdentityErrorDescriber(),
 			Substitute.For<IServiceProvider>(),
