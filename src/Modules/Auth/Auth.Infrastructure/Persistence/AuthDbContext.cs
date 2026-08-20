@@ -13,6 +13,8 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 
 	public DbSet<PendingRegistration> PendingRegistrations => Set<PendingRegistration>();
 
+	public DbSet<PendingPasswordReset> PendingPasswordResets => Set<PendingPasswordReset>();
+
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
 		base.OnModelCreating(builder);
@@ -21,5 +23,6 @@ public sealed class AuthDbContext(DbContextOptions<AuthDbContext> options)
 		builder.ApplyConfiguration(new RefreshTokenConfiguration());
 		builder.ApplyConfiguration(new ApplicationUserConfiguration());
 		builder.ApplyConfiguration(new PendingRegistrationConfiguration());
+		builder.ApplyConfiguration(new PendingPasswordResetConfiguration());
 	}
 }
