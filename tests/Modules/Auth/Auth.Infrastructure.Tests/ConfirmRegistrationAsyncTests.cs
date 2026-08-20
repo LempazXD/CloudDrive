@@ -45,7 +45,7 @@ public sealed class ConfirmRegistrationAsyncTests
 		var now = harness.TimeProvider.GetUtcNow();
 		var pending = PendingRegistration.Create(
 			Guid.NewGuid(), "USER@TEST.COM", "user@test.com", "user",
-			"password-hash", RegistrationCodeGenerator.Hash("123456"), now.AddMinutes(-20), now.AddMinutes(-5));
+			"password-hash", VerificationCodeGenerator.Hash("123456"), now.AddMinutes(-20), now.AddMinutes(-5));
 		harness.PendingRegistrationRepository.GetByNormalizedEmailAsync("USER@TEST.COM", Arg.Any<CancellationToken>())
 			.Returns(pending);
 		var sut = harness.CreateSut();
@@ -65,7 +65,7 @@ public sealed class ConfirmRegistrationAsyncTests
 		var now = harness.TimeProvider.GetUtcNow();
 		var pending = PendingRegistration.Create(
 			Guid.NewGuid(), "USER@TEST.COM", "user@test.com", "user",
-			"password-hash", RegistrationCodeGenerator.Hash("123456"), now, now.AddMinutes(15));
+			"password-hash", VerificationCodeGenerator.Hash("123456"), now, now.AddMinutes(15));
 		harness.PendingRegistrationRepository.GetByNormalizedEmailAsync("USER@TEST.COM", Arg.Any<CancellationToken>())
 			.Returns(pending);
 		var sut = harness.CreateSut();
@@ -88,7 +88,7 @@ public sealed class ConfirmRegistrationAsyncTests
 		var now = harness.TimeProvider.GetUtcNow();
 		var pending = PendingRegistration.Create(
 			Guid.NewGuid(), "USER@TEST.COM", "user@test.com", "user",
-			"password-hash", RegistrationCodeGenerator.Hash("123456"), now, now.AddMinutes(15));
+			"password-hash", VerificationCodeGenerator.Hash("123456"), now, now.AddMinutes(15));
 		for (var i = 0; i < harness.RegistrationOptions.MaxAttempts - 1; i++)
 			pending.RecordFailedAttempt();
 
@@ -111,7 +111,7 @@ public sealed class ConfirmRegistrationAsyncTests
 		var now = harness.TimeProvider.GetUtcNow();
 		var pending = PendingRegistration.Create(
 			Guid.NewGuid(), "USER@TEST.COM", "user@test.com", "user",
-			"password-hash", RegistrationCodeGenerator.Hash("123456"), now, now.AddMinutes(15));
+			"password-hash", VerificationCodeGenerator.Hash("123456"), now, now.AddMinutes(15));
 		harness.PendingRegistrationRepository.GetByNormalizedEmailAsync("USER@TEST.COM", Arg.Any<CancellationToken>())
 			.Returns(pending);
 		harness.UserManager.CreateAsync(Arg.Any<ApplicationUser>()).Returns(IdentityResult.Success);
@@ -133,7 +133,7 @@ public sealed class ConfirmRegistrationAsyncTests
 		var now = harness.TimeProvider.GetUtcNow();
 		var pending = PendingRegistration.Create(
 			Guid.NewGuid(), "USER@TEST.COM", "user@test.com", "user",
-			"password-hash", RegistrationCodeGenerator.Hash("123456"), now, now.AddMinutes(15));
+			"password-hash", VerificationCodeGenerator.Hash("123456"), now, now.AddMinutes(15));
 		harness.PendingRegistrationRepository.GetByNormalizedEmailAsync("USER@TEST.COM", Arg.Any<CancellationToken>())
 			.Returns(pending);
 		harness.UserManager.CreateAsync(Arg.Any<ApplicationUser>())

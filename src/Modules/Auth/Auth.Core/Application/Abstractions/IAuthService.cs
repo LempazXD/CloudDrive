@@ -4,7 +4,7 @@ namespace Auth.Core.Application.Abstractions;
 
 public interface IAuthService
 {
-	Task<Result<RegistrationCodeSent>> RegisterAsync(string username, string email, string password, CancellationToken ct);
+	Task<Result<VerificationCodeSent>> RegisterAsync(string username, string email, string password, CancellationToken ct);
 
 	Task<Result<AuthTokens>> ConfirmRegistrationAsync(string email, string code, CancellationToken ct);
 

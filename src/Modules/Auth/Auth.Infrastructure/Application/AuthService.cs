@@ -26,7 +26,7 @@ internal sealed class AuthService(
 	IOptions<RegistrationOptions> registrationOptions,
 	ILogger<AuthService> logger) : IAuthService
 {
-	public async Task<Result<RegistrationCodeSent>> RegisterAsync(
+	public async Task<Result<VerificationCodeSent>> RegisterAsync(
 		string username,
 		string email,
 		string password,
@@ -47,13 +47,13 @@ internal sealed class AuthService(
 
 		var now = timeProvider.GetUtcNow();
 		var codeExpiresAtUtc = now.Add(registrationOptions.Value.CodeLifetime);
-		var response = new RegistrationCodeSent(email, codeExpiresAtUtc);
+		var response = new VerificationCodeSent(email, codeExpiresAtUtc);
 
 		if (!validation.Succeeded)
 			return validation.ToResult(response, "Auth.User.RegistrationFailed", logger);
 
 		var passwordHash = userManager.PasswordHasher.HashPassword(transientUser, password);
-		var rawCode = RegistrationCodeGenerator.GenerateRaw();
+		var rawCode = VerificationCodeGenerator.GenerateRaw();
 		var normalizedEmail = userManager.NormalizeEmail(email)!;
 
 		await pendingRegistrationRepository.DeleteExpiredAsync(now, ct);
@@ -68,7 +68,7 @@ internal sealed class AuthService(
 			email,
 			username,
 			passwordHash,
-			RegistrationCodeGenerator.Hash(rawCode),
+			VerificationCodeGenerator.Hash(rawCode),
 			now,
 			codeExpiresAtUtc);
 
@@ -120,7 +120,7 @@ internal sealed class AuthService(
 			return Error.Unauthorized("Auth.RegistrationCode.Expired");
 		}
 
-		if (RegistrationCodeGenerator.Hash(code) != pending.CodeHash)
+		if (VerificationCodeGenerator.Hash(code) != pending.CodeHash)
 		{
 			pending.RecordFailedAttempt();
 
