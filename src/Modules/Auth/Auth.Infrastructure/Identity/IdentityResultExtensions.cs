@@ -47,6 +47,7 @@ internal static class IdentityResultExtensions
 				=> Error.Validation("Auth.User.WeakPassword"),
 			"InvalidEmail" => Error.Validation("Auth.User.InvalidEmail"),
 			"ConcurrencyFailure" => Error.Conflict("Auth.User.ConcurrencyConflict"),
+			"PasswordMismatch" => Error.Unauthorized("Auth.User.InvalidCurrentPassword"),
 			_ => null
 		};
 }

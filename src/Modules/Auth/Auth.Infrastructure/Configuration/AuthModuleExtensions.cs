@@ -27,6 +27,7 @@ public static class AuthModuleExtensions
 		services.AddIdentityConfigOptions(configuration);
 		services.AddSmtpOptions(configuration);
 		services.AddRegistrationOptions(configuration);
+		services.AddPasswordResetOptions(configuration);
 
 		services.AddOptions<RateLimiterOptions>()
 			.Configure<IOptions<RateLimitingOptions>>((rlOptions, authRateLimiting) =>
@@ -34,6 +35,9 @@ public static class AuthModuleExtensions
 				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Login, authRateLimiting.Value.Login);
 				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Register, authRateLimiting.Value.Register);
 				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ConfirmRegistration, authRateLimiting.Value.ConfirmRegistration);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ForgotPassword, authRateLimiting.Value.ForgotPassword);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ResetPassword, authRateLimiting.Value.ResetPassword);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ChangePassword, authRateLimiting.Value.ChangePassword);
 			});
 
 		services.AddDbContext<AuthDbContext>((sp, options) =>
@@ -74,6 +78,7 @@ public static class AuthModuleExtensions
 		services.AddSingleton<IEmailSender, SmtpEmailSender>();
 		services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 		services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepository>();
+		services.AddScoped<IPendingPasswordResetRepository, PendingPasswordResetRepository>();
 		services.AddScoped<IAuthService, AuthService>();
 
 		return services;
@@ -108,6 +113,12 @@ public static class AuthModuleExtensions
 			.Validate(o => o.Register.Window > TimeSpan.Zero, "RateLimiting:Register:Window must be positive.")
 			.Validate(o => o.ConfirmRegistration.PermitLimit > 0, "RateLimiting:ConfirmRegistration:PermitLimit must be positive.")
 			.Validate(o => o.ConfirmRegistration.Window > TimeSpan.Zero, "RateLimiting:ConfirmRegistration:Window must be positive.")
+			.Validate(o => o.ForgotPassword.PermitLimit > 0, "RateLimiting:ForgotPassword:PermitLimit must be positive.")
+			.Validate(o => o.ForgotPassword.Window > TimeSpan.Zero, "RateLimiting:ForgotPassword:Window must be positive.")
+			.Validate(o => o.ResetPassword.PermitLimit > 0, "RateLimiting:ResetPassword:PermitLimit must be positive.")
+			.Validate(o => o.ResetPassword.Window > TimeSpan.Zero, "RateLimiting:ResetPassword:Window must be positive.")
+			.Validate(o => o.ChangePassword.PermitLimit > 0, "RateLimiting:ChangePassword:PermitLimit must be positive.")
+			.Validate(o => o.ChangePassword.Window > TimeSpan.Zero, "RateLimiting:ChangePassword:Window must be positive.")
 			.ValidateOnStart();
 	}
 
@@ -127,6 +138,15 @@ public static class AuthModuleExtensions
 			.Bind(configuration.GetSection("Registration"))
 			.Validate(o => o.CodeLifetime > TimeSpan.Zero, "Registration:CodeLifetime must be positive.")
 			.Validate(o => o.MaxAttempts > 0, "Registration:MaxAttempts must be positive.")
+			.ValidateOnStart();
+	}
+
+	private static void AddPasswordResetOptions(this IServiceCollection services, IConfiguration configuration)
+	{
+		services.AddOptions<PasswordResetOptions>()
+			.Bind(configuration.GetSection("PasswordReset"))
+			.Validate(o => o.CodeLifetime > TimeSpan.Zero, "PasswordReset:CodeLifetime must be positive.")
+			.Validate(o => o.MaxAttempts > 0, "PasswordReset:MaxAttempts must be positive.")
 			.ValidateOnStart();
 	}
 

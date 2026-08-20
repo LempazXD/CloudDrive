@@ -7,6 +7,12 @@ public sealed class RateLimitingOptions
 	public required RateLimitRuleOptions Register { get; init; }
 
 	public required RateLimitRuleOptions ConfirmRegistration { get; init; }
+
+	public required RateLimitRuleOptions ForgotPassword { get; init; }
+
+	public required RateLimitRuleOptions ResetPassword { get; init; }
+
+	public required RateLimitRuleOptions ChangePassword { get; init; }
 }
 
 public sealed class RateLimitRuleOptions
