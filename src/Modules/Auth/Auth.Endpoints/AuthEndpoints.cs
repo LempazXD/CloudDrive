@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Auth.Core.Application.Abstractions;
 using Auth.Endpoints.Contracts;
 using Microsoft.AspNetCore.Builder;
@@ -18,6 +19,13 @@ public static class AuthEndpoints
 		group.MapPost("/register", RegisterAsync).RequireRateLimiting(AuthRateLimitPolicies.Register);
 		group.MapPost("/confirm-registration", ConfirmRegistrationAsync)
 			.RequireRateLimiting(AuthRateLimitPolicies.ConfirmRegistration);
+		group.MapPost("/forgot-password", ForgotPasswordAsync)
+			.RequireRateLimiting(AuthRateLimitPolicies.ForgotPassword);
+		group.MapPost("/reset-password", ResetPasswordAsync)
+			.RequireRateLimiting(AuthRateLimitPolicies.ResetPassword);
+		group.MapPost("/change-password", ChangePasswordAsync)
+			.RequireAuthorization()
+			.RequireRateLimiting(AuthRateLimitPolicies.ChangePassword);
 		group.MapPost("/login", LoginAsync).RequireRateLimiting(AuthRateLimitPolicies.Login);
 		group.MapPost("/refresh", RefreshAsync);
 		group.MapPost("/logout", LogoutAsync);
@@ -37,6 +45,29 @@ public static class AuthEndpoints
 		ConfirmRegistrationRequest request, IAuthService authService, CancellationToken ct)
 	{
 		var result = await authService.ConfirmRegistrationAsync(request.Email, request.Code, ct);
+		return result.Match(ToResponse);
+	}
+
+	private static async Task<Results<Ok<ForgotPasswordResponse>, ProblemHttpResult>> ForgotPasswordAsync(
+		ForgotPasswordRequest request, IAuthService authService, CancellationToken ct)
+	{
+		var result = await authService.ForgotPasswordAsync(request.Email, ct);
+		return result.Match(s => TypedResults.Ok(new ForgotPasswordResponse(s.Email, s.CodeExpiresAtUtc)));
+	}
+
+	private static async Task<Results<Ok<AuthTokensResponse>, ProblemHttpResult>> ResetPasswordAsync(
+		ResetPasswordRequest request, IAuthService authService, CancellationToken ct)
+	{
+		var result = await authService.ResetPasswordAsync(
+			request.Email, request.Code, request.NewPassword, request.ConfirmNewPassword, ct);
+		return result.Match(ToResponse);
+	}
+
+	private static async Task<Results<Ok<AuthTokensResponse>, ProblemHttpResult>> ChangePasswordAsync(
+		ChangePasswordRequest request, ClaimsPrincipal user, IAuthService authService, CancellationToken ct)
+	{
+		var result = await authService.ChangePasswordAsync(
+			user.GetUserId(), request.CurrentPassword, request.NewPassword, request.ConfirmNewPassword, ct);
 		return result.Match(ToResponse);
 	}
 
