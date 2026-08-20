@@ -19,11 +19,13 @@ internal sealed class AuthService(
 	IRefreshTokenRepository refreshTokenRepository,
 	IRefreshTokenReplayCache refreshTokenReplayCache,
 	IPendingRegistrationRepository pendingRegistrationRepository,
+	IPendingPasswordResetRepository pendingPasswordResetRepository,
 	IEmailSender emailSender,
 	IGuidProvider guidProvider,
 	TimeProvider timeProvider,
 	IOptions<JwtOptions> jwtOptions,
 	IOptions<RegistrationOptions> registrationOptions,
+	IOptions<PasswordResetOptions> passwordResetOptions,
 	ILogger<AuthService> logger) : IAuthService
 {
 	public async Task<Result<VerificationCodeSent>> RegisterAsync(
@@ -210,6 +212,175 @@ internal sealed class AuthService(
 		}
 
 		return errors.Count == 0 ? IdentityResult.Success : IdentityResult.Failed(errors.ToArray());
+	}
+
+	public async Task<Result<VerificationCodeSent>> ForgotPasswordAsync(string email, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(email))
+			return Error.Validation("Auth.User.InvalidEmail");
+
+		var now = timeProvider.GetUtcNow();
+		var codeExpiresAtUtc = now.Add(passwordResetOptions.Value.CodeLifetime);
+		// Ответ строится одинаково независимо от того, найден ли аккаунт - раскрывать его
+		// существование по email нельзя (в отличие от /register, где Conflict уже допустим).
+		var response = new VerificationCodeSent(email, codeExpiresAtUtc);
+
+		await pendingPasswordResetRepository.DeleteExpiredAsync(now, ct);
+
+		var user = await userManager.FindByEmailAsync(email);
+		if (user is null)
+		{
+			logger.LogInformation("Password reset requested for {Email}: no matching account.", email);
+			return Result.Success(response);
+		}
+
+		var rawCode = VerificationCodeGenerator.GenerateRaw();
+
+		var existingPending = await pendingPasswordResetRepository.GetByUserIdAsync(user.Id, ct);
+		if (existingPending is not null)
+			await pendingPasswordResetRepository.RemoveAsync(existingPending, ct);
+
+		var pending = PendingPasswordReset.Create(
+			guidProvider.CreateVersion7(),
+			user.Id,
+			VerificationCodeGenerator.Hash(rawCode),
+			now,
+			codeExpiresAtUtc);
+
+		try
+		{
+			await pendingPasswordResetRepository.AddAsync(pending, ct);
+			await pendingPasswordResetRepository.SaveChangesAsync(ct);
+		}
+		catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+		                                   {
+			                                   SqlState: PostgresErrorCodes.UniqueViolation
+		                                   } pgEx)
+		{
+			// Гонка двух параллельных /forgot-password для одного аккаунта: в отличие от RegisterAsync,
+			// здесь нельзя отдать Conflict наружу - весь смысл эндпоинта в неразличимости ответа.
+			if (pgEx.ConstraintName != "PendingPasswordResetUserIndex")
+				throw;
+
+			logger.LogWarning("Password reset initiation hit a unique-constraint race for user {UserId}.", user.Id);
+			return Result.Success(response);
+		}
+
+		await emailSender.SendPasswordResetCodeAsync(email, rawCode, passwordResetOptions.Value.CodeLifetime, ct);
+		logger.LogInformation("Password reset code issued for {Email}.", email);
+
+		return Result.Success(response);
+	}
+
+	public async Task<Result<AuthTokens>> ResetPasswordAsync(
+		string email, string code, string newPassword, string confirmNewPassword, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code))
+			return Error.NotFound("Auth.PasswordReset.NotFound");
+
+		var user = await userManager.FindByEmailAsync(email);
+		if (user is null)
+		{
+			logger.LogWarning("Password reset confirmation failed for {Email}: no matching account.", email);
+			return Error.NotFound("Auth.PasswordReset.NotFound");
+		}
+
+		var pending = await pendingPasswordResetRepository.GetByUserIdAsync(user.Id, ct);
+		if (pending is null)
+		{
+			logger.LogWarning("Password reset confirmation failed for user {UserId}: no pending reset found.", user.Id);
+			return Error.NotFound("Auth.PasswordReset.NotFound");
+		}
+
+		var now = timeProvider.GetUtcNow();
+		if (pending.IsExpired(now))
+		{
+			await pendingPasswordResetRepository.RemoveAsync(pending, ct);
+			await pendingPasswordResetRepository.SaveChangesAsync(ct);
+			logger.LogWarning("Password reset confirmation failed for user {UserId}: code expired.", user.Id);
+			return Error.Unauthorized("Auth.PasswordReset.Expired");
+		}
+
+		// Проверка кода идёт до проверки нового пароля: иначе код можно было бы бесплатно
+		// "прощупывать", всегда присылая заведомо невалидную пару паролей и не тратя AttemptCount.
+		if (VerificationCodeGenerator.Hash(code) != pending.CodeHash)
+		{
+			pending.RecordFailedAttempt();
+
+			if (pending.HasExceededAttempts(passwordResetOptions.Value.MaxAttempts))
+			{
+				await pendingPasswordResetRepository.RemoveAsync(pending, ct);
+				await pendingPasswordResetRepository.SaveChangesAsync(ct);
+				logger.LogWarning("Password reset confirmation for user {UserId} exceeded the maximum attempt count.", user.Id);
+				return Error.Validation("Auth.PasswordReset.TooManyAttempts");
+			}
+
+			await pendingPasswordResetRepository.SaveChangesAsync(ct);
+			logger.LogWarning(
+				"Password reset confirmation failed for user {UserId}: incorrect code (attempt {AttemptCount}).",
+				user.Id, pending.AttemptCount);
+			return Error.Unauthorized("Auth.PasswordReset.Invalid");
+		}
+
+		if (string.IsNullOrWhiteSpace(newPassword))
+			return Error.Validation("Auth.User.WeakPassword");
+
+		if (newPassword != confirmNewPassword)
+			return Error.Validation("Auth.User.PasswordConfirmationMismatch");
+
+		// Наш код уже подтвердил владение почтой; генерируем и сразу же потребляем встроенный
+		// Identity-токен ровно в этом вызове - только чтобы честно прогнать PasswordValidators и
+		// хэширование через ResetPasswordAsync. Токен никогда не покидает этот метод.
+		var token = await userManager.GeneratePasswordResetTokenAsync(user);
+		var identityResult = await userManager.ResetPasswordAsync(user, token, newPassword);
+		if (!identityResult.Succeeded)
+			return identityResult.ToResult("Auth.User.PasswordResetFailed", logger).Error!;
+
+		await pendingPasswordResetRepository.RemoveAsync(pending, ct);
+		await pendingPasswordResetRepository.SaveChangesAsync(ct);
+
+		// Снимает и счётчик неудачных попыток, и саму блокировку - ResetAccessFailedCountAsync
+		// сбрасывает только счётчик, LockoutEnd снимается лишь SetLockoutEndDateAsync(null).
+		await userManager.ResetAccessFailedCountAsync(user);
+		await userManager.SetLockoutEndDateAsync(user, null);
+
+		await refreshTokenRepository.RevokeAllForUserAsync(user.Id, now, ct);
+
+		logger.LogInformation("User {UserId} completed password reset via confirmation code.", user.Id);
+
+		return await IssueTokensAsync(user, tokenToRotate: null, ct);
+	}
+
+	public async Task<Result<AuthTokens>> ChangePasswordAsync(
+		Guid userId, string currentPassword, string newPassword, string confirmNewPassword, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(newPassword))
+			return Error.Validation("Auth.User.WeakPassword");
+
+		if (newPassword != confirmNewPassword)
+			return Error.Validation("Auth.User.PasswordConfirmationMismatch");
+
+		var user = await userManager.FindByIdAsync(userId.ToString());
+		if (user is null)
+		{
+			// Защитный случай: userId приходит из валидного JWT, а удаления аккаунта в проекте нет -
+			// в норме недостижимо, но метод не должен падать необработанным исключением.
+			logger.LogWarning("Change password failed: no user found for id {UserId}.", userId);
+			return Error.NotFound("Auth.User.NotFound");
+		}
+
+		var identityResult = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+		if (!identityResult.Succeeded)
+			return identityResult.ToResult("Auth.User.PasswordChangeFailed", logger).Error!;
+
+		await userManager.ResetAccessFailedCountAsync(user);
+		await userManager.SetLockoutEndDateAsync(user, null);
+
+		await refreshTokenRepository.RevokeAllForUserAsync(user.Id, timeProvider.GetUtcNow(), ct);
+
+		logger.LogInformation("User {UserId} changed their password.", user.Id);
+
+		return await IssueTokensAsync(user, tokenToRotate: null, ct);
 	}
 
 	public async Task<Result<AuthTokens>> LoginAsync(string login, string password, CancellationToken ct)
