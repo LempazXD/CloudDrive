@@ -242,4 +242,28 @@ public sealed class ConfirmChangePasswordAsyncTests
 		_ = harness.PendingPasswordResetRepository.Received(1).RemoveAsync(staleReset, Arg.Any<CancellationToken>());
 		_ = harness.PendingPasswordResetRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
 	}
+
+	[Fact]
+	public async Task ConfirmChangePasswordAsync_NewPasswordMatchesStoredCurrentPassword_ReturnsValidationError()
+	{
+		// Клиент присылает NewPassword заново на этом шаге и может подставить любое значение -
+		// перепроверяем против реально сохранённого хэша, а не полагаемся на проверку из шага 1.
+		var harness = new AuthServiceTestHarness();
+		var user = new ApplicationUser { Id = Guid.NewGuid(), UserName = "user", Email = "user@test.com" };
+		harness.UserManager.FindByIdAsync(user.Id.ToString()).Returns(user);
+		var now = harness.TimeProvider.GetUtcNow();
+		var pending = PendingPasswordChange.Create(
+			Guid.NewGuid(), user.Id, VerificationCodeGenerator.Hash("ABC123"), now, now.AddMinutes(15));
+		harness.PendingPasswordChangeRepository.GetByUserIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(pending);
+		harness.UserManager.CheckPasswordAsync(user, "OldPass1!").Returns(true);
+		var sut = harness.CreateSut();
+
+		var result = await sut.ConfirmChangePasswordAsync(
+			user.Id, "ABC123", "OldPass1!", "OldPass1!", CancellationToken.None);
+
+		Assert.True(result.IsFailure);
+		Assert.Equal(ErrorType.Validation, result.Error!.Type);
+		Assert.Equal("Auth.User.NewPasswordMatchesCurrent", result.Error.Code);
+		_ = harness.UserManager.DidNotReceive().GeneratePasswordResetTokenAsync(Arg.Any<ApplicationUser>());
+	}
 }

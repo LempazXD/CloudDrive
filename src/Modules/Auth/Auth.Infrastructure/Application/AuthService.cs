@@ -508,11 +508,17 @@ internal sealed class AuthService(
 		if (newPassword != confirmNewPassword)
 			return Error.Validation("Auth.User.PasswordConfirmationMismatch");
 
-		// Тот же приём, что и ResetPasswordAsync: код уже подтвердил владение почтой, а текущий
-		// пароль уже проверен на шаге ChangePasswordAsync; встроенный Identity-токен - только чтобы
-		// честно прогнать PasswordValidators и хэширование через ResetPasswordAsync (это, а не прямое
-		// присваивание PasswordHash, корректно обновляет и SecurityStamp). Токен никогда не покидает
-		// этот метод.
+		// ChangePasswordAsync отвергает NewPassword == CurrentPassword, но клиент присылает
+		// NewPassword заново здесь и может подставить другое значение (например, вернуть старый
+		// пароль обратно) - перепроверяем против реально сохранённого хэша, а не против того, что
+		// клиент назвал "текущим" на первом шаге.
+		if (await userManager.CheckPasswordAsync(user, newPassword))
+			return Error.Validation("Auth.User.NewPasswordMatchesCurrent");
+
+		// Тот же приём, что и ResetPasswordAsync: код уже подтвердил владение почтой; встроенный
+		// Identity-токен - только чтобы честно прогнать PasswordValidators и хэширование через
+		// ResetPasswordAsync (это, а не прямое присваивание PasswordHash, корректно обновляет и
+		// SecurityStamp). Токен никогда не покидает этот метод.
 		var token = await userManager.GeneratePasswordResetTokenAsync(user);
 		var identityResult = await userManager.ResetPasswordAsync(user, token, newPassword);
 		if (!identityResult.Succeeded)
