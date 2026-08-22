@@ -13,4 +13,6 @@ public static class AuthRateLimitPolicies
 	public const string ResetPassword = "auth-reset-password";
 
 	public const string ChangePassword = "auth-change-password";
+
+	public const string ConfirmChangePassword = "auth-confirm-change-password";
 }

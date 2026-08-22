@@ -28,16 +28,23 @@ public static class AuthModuleExtensions
 		services.AddSmtpOptions(configuration);
 		services.AddRegistrationOptions(configuration);
 		services.AddPasswordResetOptions(configuration);
+		services.AddPasswordChangeOptions(configuration);
 
 		services.AddOptions<RateLimiterOptions>()
 			.Configure<IOptions<RateLimitingOptions>>((rlOptions, authRateLimiting) =>
 			{
-				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Login, authRateLimiting.Value.Login);
-				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Register, authRateLimiting.Value.Register);
-				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ConfirmRegistration, authRateLimiting.Value.ConfirmRegistration);
-				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ForgotPassword, authRateLimiting.Value.ForgotPassword);
-				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ResetPassword, authRateLimiting.Value.ResetPassword);
-				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ChangePassword, authRateLimiting.Value.ChangePassword);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Login, authRateLimiting.Value.Login, GetClientIp);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.Register, authRateLimiting.Value.Register, GetClientIp);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ConfirmRegistration, authRateLimiting.Value.ConfirmRegistration, GetClientIp);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ForgotPassword, authRateLimiting.Value.ForgotPassword, GetClientIp);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ResetPassword, authRateLimiting.Value.ResetPassword, GetClientIp);
+				// По UserId, а не по IP: оба эндпоинта аутентифицированы, и партиция по IP защищала бы
+				// не того - мешала бы атакующему бить много ЧУЖИХ аккаунтов с одного адреса, а не бить
+				// один конкретный аккаунт через ротацию IP. Технически возможно только потому, что
+				// UseAuthentication() в Program.cs идёт раньше UseRateLimiter() - к этому моменту
+				// HttpContext.User уже содержит настоящий claims-principal, а не анонимный.
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ChangePassword, authRateLimiting.Value.ChangePassword, GetUserId);
+				AddFixedWindowPolicy(rlOptions, AuthRateLimitPolicies.ConfirmChangePassword, authRateLimiting.Value.ConfirmChangePassword, GetUserId);
 			});
 
 		services.AddDbContext<AuthDbContext>((sp, options) =>
@@ -79,6 +86,7 @@ public static class AuthModuleExtensions
 		services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 		services.AddScoped<IPendingRegistrationRepository, PendingRegistrationRepository>();
 		services.AddScoped<IPendingPasswordResetRepository, PendingPasswordResetRepository>();
+		services.AddScoped<IPendingPasswordChangeRepository, PendingPasswordChangeRepository>();
 		services.AddScoped<IAuthService, AuthService>();
 
 		return services;
@@ -119,6 +127,8 @@ public static class AuthModuleExtensions
 			.Validate(o => o.ResetPassword.Window > TimeSpan.Zero, "RateLimiting:ResetPassword:Window must be positive.")
 			.Validate(o => o.ChangePassword.PermitLimit > 0, "RateLimiting:ChangePassword:PermitLimit must be positive.")
 			.Validate(o => o.ChangePassword.Window > TimeSpan.Zero, "RateLimiting:ChangePassword:Window must be positive.")
+			.Validate(o => o.ConfirmChangePassword.PermitLimit > 0, "RateLimiting:ConfirmChangePassword:PermitLimit must be positive.")
+			.Validate(o => o.ConfirmChangePassword.Window > TimeSpan.Zero, "RateLimiting:ConfirmChangePassword:Window must be positive.")
 			.ValidateOnStart();
 	}
 
@@ -154,6 +164,15 @@ public static class AuthModuleExtensions
 	// Значения применяются не здесь: UserManager/SignInManager получают тот же IOptions<IdentityOptions>
 	// через DI и сами читают Options.Password/Options.Lockout
 	// TODO: DefaultLockoutTimeSpan - фиксированная длительность на каждую блокировку
+	private static void AddPasswordChangeOptions(this IServiceCollection services, IConfiguration configuration)
+	{
+		services.AddOptions<PasswordChangeOptions>()
+			.Bind(configuration.GetSection("PasswordChange"))
+			.Validate(o => o.CodeLifetime > TimeSpan.Zero, "PasswordChange:CodeLifetime must be positive.")
+			.Validate(o => o.MaxAttempts > 0, "PasswordChange:MaxAttempts must be positive.")
+			.ValidateOnStart();
+	}
+
 	private static void AddIdentityConfigOptions(this IServiceCollection services, IConfiguration configuration)
 	{
 		services.AddOptions<IdentityOptions>()
@@ -165,9 +184,10 @@ public static class AuthModuleExtensions
 			.ValidateOnStart();
 	}
 
-	private static void AddFixedWindowPolicy(RateLimiterOptions rlOptions, string policyName, RateLimitRuleOptions rule) =>
+	private static void AddFixedWindowPolicy(
+		RateLimiterOptions rlOptions, string policyName, RateLimitRuleOptions rule, Func<HttpContext, string> partitionKey) =>
 		rlOptions.AddPolicy(policyName, httpContext =>
-			RateLimitPartition.GetFixedWindowLimiter(GetClientIp(httpContext), _ => new FixedWindowRateLimiterOptions
+			RateLimitPartition.GetFixedWindowLimiter(partitionKey(httpContext), _ => new FixedWindowRateLimiterOptions
 			{
 				PermitLimit = rule.PermitLimit,
 				Window = rule.Window,
@@ -194,4 +214,12 @@ public static class AuthModuleExtensions
 	// подряд - все клиенты схлопнутся в один rate-limit bucket.
 	private static string GetClientIp(HttpContext httpContext) =>
 		httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+	// Только для аутентифицированных политик (ChangePassword/ConfirmChangePassword): оба эндпоинта
+	// требуют RequireAuthorization(), а в конвейере Program.cs UseAuthentication() идёт раньше
+	// UseRateLimiter() - "sub" всегда присутствует к этому моменту, поэтому без fallback на IP,
+	// как и ClaimsPrincipalExtensions.GetUserId() в Auth.Endpoints.
+	private static string GetUserId(HttpContext httpContext) =>
+		httpContext.User.FindFirst("sub")?.Value
+		?? throw new InvalidOperationException("Missing 'sub' claim.");
 }
