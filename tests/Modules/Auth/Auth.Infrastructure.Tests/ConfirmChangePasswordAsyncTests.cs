@@ -230,17 +230,13 @@ public sealed class ConfirmChangePasswordAsyncTests
 		harness.PendingPasswordChangeRepository.GetByUserIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(pending);
 		harness.UserManager.GeneratePasswordResetTokenAsync(user).Returns("reset-token");
 		harness.UserManager.ResetPasswordAsync(user, "reset-token", "P@ssw0rd!").Returns(IdentityResult.Success);
-		var staleReset = PendingPasswordReset.Create(
-			Guid.NewGuid(), user.Id, VerificationCodeGenerator.Hash("STALE1"), now.AddMinutes(-10), now.AddMinutes(5));
-		harness.PendingPasswordResetRepository.GetByUserIdAsync(user.Id, Arg.Any<CancellationToken>()).Returns(staleReset);
 		var sut = harness.CreateSut();
 
 		var result = await sut.ConfirmChangePasswordAsync(
 			user.Id, "ABC123", "P@ssw0rd!", "P@ssw0rd!", CancellationToken.None);
 
 		Assert.True(result.IsSuccess);
-		_ = harness.PendingPasswordResetRepository.Received(1).RemoveAsync(staleReset, Arg.Any<CancellationToken>());
-		_ = harness.PendingPasswordResetRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+		_ = harness.PendingPasswordResetRepository.Received(1).DeleteByUserIdAsync(user.Id, Arg.Any<CancellationToken>());
 	}
 
 	[Fact]

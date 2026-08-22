@@ -26,5 +26,8 @@ internal sealed class PendingPasswordResetRepository(AuthDbContext db) : IPendin
 	public Task<int> DeleteExpiredAsync(DateTimeOffset utcNow, CancellationToken ct) =>
 		db.PendingPasswordResets.Where(p => p.ExpiresAtUtc <= utcNow).ExecuteDeleteAsync(ct);
 
+	public Task<int> DeleteByUserIdAsync(Guid userId, CancellationToken ct) =>
+		db.PendingPasswordResets.Where(p => p.UserId == userId).ExecuteDeleteAsync(ct);
+
 	public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);
 }

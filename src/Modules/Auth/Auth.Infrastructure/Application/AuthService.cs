@@ -345,7 +345,7 @@ internal sealed class AuthService(
 		// (/change-password) для этого же пользователя - иначе её код остаётся годным до своего
 		// истечения и позволяет установить пароль без повторной проверки текущего (который к этому
 		// моменту уже сменился).
-		await RemovePendingPasswordChangeIfAnyAsync(user.Id, ct);
+		await pendingPasswordChangeRepository.DeleteByUserIdAsync(user.Id, ct);
 
 		// Снимает и счётчик неудачных попыток, и саму блокировку - ResetAccessFailedCountAsync
 		// сбрасывает только счётчик, LockoutEnd снимается лишь SetLockoutEndDateAsync(null).
@@ -529,7 +529,7 @@ internal sealed class AuthService(
 
 		// Успешная смена аннулирует и отдельную, незавершённую заявку на восстановление пароля
 		// (/forgot-password) для этого же пользователя - см. симметричную очистку в ResetPasswordAsync.
-		await RemovePendingPasswordResetIfAnyAsync(user.Id, ct);
+		await pendingPasswordResetRepository.DeleteByUserIdAsync(user.Id, ct);
 
 		await userManager.ResetAccessFailedCountAsync(user);
 		await userManager.SetLockoutEndDateAsync(user, null);
@@ -697,26 +697,6 @@ internal sealed class AuthService(
 		}
 
 		return Result.Success();
-	}
-
-	private async Task RemovePendingPasswordChangeIfAnyAsync(Guid userId, CancellationToken ct)
-	{
-		var pendingChange = await pendingPasswordChangeRepository.GetByUserIdAsync(userId, ct);
-		if (pendingChange is null)
-			return;
-
-		await pendingPasswordChangeRepository.RemoveAsync(pendingChange, ct);
-		await pendingPasswordChangeRepository.SaveChangesAsync(ct);
-	}
-
-	private async Task RemovePendingPasswordResetIfAnyAsync(Guid userId, CancellationToken ct)
-	{
-		var pendingReset = await pendingPasswordResetRepository.GetByUserIdAsync(userId, ct);
-		if (pendingReset is null)
-			return;
-
-		await pendingPasswordResetRepository.RemoveAsync(pendingReset, ct);
-		await pendingPasswordResetRepository.SaveChangesAsync(ct);
 	}
 
 	private async Task<(Error Error, DateTimeOffset? LockoutEndUtc)> BuildLockedOutErrorAsync(ApplicationUser user)
