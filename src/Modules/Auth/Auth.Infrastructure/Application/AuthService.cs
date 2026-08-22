@@ -410,7 +410,7 @@ internal sealed class AuthService(
 		}
 
 		if (passwordErrors.Count > 0)
-			return IdentityResult.Failed(passwordErrors.ToArray()).ToResult(response, "Auth.User.PasswordChangeFailed", logger);
+			return IdentityResult.Failed(passwordErrors.ToArray()).ToResult("Auth.User.PasswordChangeFailed", logger).Error!;
 
 		var rawCode = VerificationCodeGenerator.GenerateRaw();
 
