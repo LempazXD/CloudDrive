@@ -63,12 +63,12 @@ public static class AuthEndpoints
 		return result.Match(ToResponse);
 	}
 
-	private static async Task<Results<Ok<AuthTokensResponse>, ProblemHttpResult>> ChangePasswordAsync(
+	private static async Task<Results<Ok<ChangePasswordResponse>, ProblemHttpResult>> ChangePasswordAsync(
 		ChangePasswordRequest request, ClaimsPrincipal user, IAuthService authService, CancellationToken ct)
 	{
 		var result = await authService.ChangePasswordAsync(
 			user.GetUserId(), request.CurrentPassword, request.NewPassword, request.ConfirmNewPassword, ct);
-		return result.Match(ToResponse);
+		return result.Match(s => TypedResults.Ok(new ChangePasswordResponse(s.CodeExpiresAtUtc)));
 	}
 
 	private static async Task<Results<Ok<AuthTokensResponse>, ProblemHttpResult>> LoginAsync(

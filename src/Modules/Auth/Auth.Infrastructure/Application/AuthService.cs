@@ -20,12 +20,14 @@ internal sealed class AuthService(
 	IRefreshTokenReplayCache refreshTokenReplayCache,
 	IPendingRegistrationRepository pendingRegistrationRepository,
 	IPendingPasswordResetRepository pendingPasswordResetRepository,
+	IPendingPasswordChangeRepository pendingPasswordChangeRepository,
 	IEmailSender emailSender,
 	IGuidProvider guidProvider,
 	TimeProvider timeProvider,
 	IOptions<JwtOptions> jwtOptions,
 	IOptions<RegistrationOptions> registrationOptions,
 	IOptions<PasswordResetOptions> passwordResetOptions,
+	IOptions<PasswordChangeOptions> passwordChangeOptions,
 	ILogger<AuthService> logger) : IAuthService
 {
 	public async Task<Result<VerificationCodeSent>> RegisterAsync(
@@ -339,6 +341,12 @@ internal sealed class AuthService(
 		await pendingPasswordResetRepository.RemoveAsync(pending, ct);
 		await pendingPasswordResetRepository.SaveChangesAsync(ct);
 
+		// Успешное восстановление аннулирует и отдельную, незавершённую заявку на смену пароля
+		// (/change-password) для этого же пользователя - иначе её код остаётся годным до своего
+		// истечения и позволяет установить пароль без повторной проверки текущего (который к этому
+		// моменту уже сменился).
+		await RemovePendingPasswordChangeIfAnyAsync(user.Id, ct);
+
 		// Снимает и счётчик неудачных попыток, и саму блокировку - ResetAccessFailedCountAsync
 		// сбрасывает только счётчик, LockoutEnd снимается лишь SetLockoutEndDateAsync(null).
 		await userManager.ResetAccessFailedCountAsync(user);
@@ -351,7 +359,7 @@ internal sealed class AuthService(
 		return await IssueTokensAsync(user, tokenToRotate: null, ct);
 	}
 
-	public async Task<Result<AuthTokens>> ChangePasswordAsync(
+	public async Task<Result<VerificationCodeSent>> ChangePasswordAsync(
 		Guid userId, string currentPassword, string newPassword, string confirmNewPassword, CancellationToken ct)
 	{
 		if (string.IsNullOrWhiteSpace(newPassword))
@@ -359,6 +367,9 @@ internal sealed class AuthService(
 
 		if (newPassword != confirmNewPassword)
 			return Error.Validation("Auth.User.PasswordConfirmationMismatch");
+
+		var now = timeProvider.GetUtcNow();
+		await pendingPasswordChangeRepository.DeleteExpiredAsync(now, ct);
 
 		var user = await userManager.FindByIdAsync(userId.ToString());
 		if (user is null)
@@ -369,16 +380,157 @@ internal sealed class AuthService(
 			return Error.NotFound("Auth.User.NotFound");
 		}
 
-		var identityResult = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+		// Не через SignInManager.CheckPasswordSignInAsync: тот триггерит блокировку по неудачным
+		// попыткам, а неверный текущий пароль здесь и сегодня блокировкой не защищён - только
+		// rate-limit'ом (тот же принцип, что и раньше: правильный пароль - более сильное
+		// доказательство личности, чем блокировка, которую он охраняет). CheckPasswordAsync также не
+		// зависит от текущего состояния блокировки - заблокированный по неудачным логинам пользователь
+		// всё равно может начать смену пароля, зная текущий пароль.
+		if (!await userManager.CheckPasswordAsync(user, currentPassword))
+		{
+			logger.LogWarning("Change password initiation failed for user {UserId}: incorrect current password.", user.Id);
+			return Error.Unauthorized("Auth.User.InvalidCurrentPassword");
+		}
+
+		if (newPassword == currentPassword)
+			return Error.Validation("Auth.User.NewPasswordMatchesCurrent");
+
+		var codeExpiresAtUtc = now.Add(passwordChangeOptions.Value.CodeLifetime);
+		var response = new VerificationCodeSent(user.Email!, codeExpiresAtUtc);
+
+		// Dry-run: та же PasswordValidators-коллекция, что реально применит ConfirmChangePasswordAsync
+		// через UserManager.ResetPasswordAsync - только чтобы сообщить о слабом пароле сразу, а не
+		// после похода за кодом на почту. Пароль нигде не сохраняется на этом шаге.
+		var passwordErrors = new List<IdentityError>();
+		foreach (var validator in userManager.PasswordValidators)
+		{
+			var validatorResult = await validator.ValidateAsync(userManager, user, newPassword);
+			if (!validatorResult.Succeeded)
+				passwordErrors.AddRange(validatorResult.Errors);
+		}
+
+		if (passwordErrors.Count > 0)
+			return IdentityResult.Failed(passwordErrors.ToArray()).ToResult(response, "Auth.User.PasswordChangeFailed", logger);
+
+		var rawCode = VerificationCodeGenerator.GenerateRaw();
+
+		var existingPending = await pendingPasswordChangeRepository.GetByUserIdAsync(user.Id, ct);
+		if (existingPending is not null)
+			await pendingPasswordChangeRepository.RemoveAsync(existingPending, ct);
+
+		var pending = PendingPasswordChange.Create(
+			guidProvider.CreateVersion7(),
+			user.Id,
+			VerificationCodeGenerator.Hash(rawCode),
+			now,
+			codeExpiresAtUtc);
+
+		try
+		{
+			await pendingPasswordChangeRepository.AddAsync(pending, ct);
+			await pendingPasswordChangeRepository.SaveChangesAsync(ct);
+		}
+		catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+		                                   {
+			                                   SqlState: PostgresErrorCodes.UniqueViolation
+		                                   } pgEx)
+		{
+			// Гонка двух параллельных /change-password для одного аккаунта: в отличие от
+			// ForgotPasswordAsync энумерация тут не проблема (пользователь уже аутентифицирован), но
+			// Conflict клиенту всё равно нечего сделать, кроме повтора - проглатываем так же.
+			if (pgEx.ConstraintName != "PendingPasswordChangeUserIndex")
+				throw;
+
+			logger.LogWarning("Password change initiation hit a unique-constraint race for user {UserId}.", user.Id);
+			return Result.Success(response);
+		}
+
+		await emailSender.SendPasswordChangeCodeAsync(user.Email!, rawCode, passwordChangeOptions.Value.CodeLifetime, ct);
+		logger.LogInformation("Password change code issued for user {UserId}.", user.Id);
+
+		return Result.Success(response);
+	}
+
+	public async Task<Result<AuthTokens>> ConfirmChangePasswordAsync(
+		Guid userId, string code, string newPassword, string confirmNewPassword, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(code))
+			return Error.NotFound("Auth.PasswordChange.NotFound");
+
+		var user = await userManager.FindByIdAsync(userId.ToString());
+		if (user is null)
+		{
+			// Тот же защитный случай, что и в ChangePasswordAsync.
+			logger.LogWarning("Confirm change password failed: no user found for id {UserId}.", userId);
+			return Error.NotFound("Auth.User.NotFound");
+		}
+
+		var pending = await pendingPasswordChangeRepository.GetByUserIdAsync(user.Id, ct);
+		if (pending is null)
+		{
+			logger.LogWarning("Confirm change password failed for user {UserId}: no pending change found.", user.Id);
+			return Error.NotFound("Auth.PasswordChange.NotFound");
+		}
+
+		var now = timeProvider.GetUtcNow();
+		if (pending.IsExpired(now))
+		{
+			await pendingPasswordChangeRepository.RemoveAsync(pending, ct);
+			await pendingPasswordChangeRepository.SaveChangesAsync(ct);
+			logger.LogWarning("Confirm change password failed for user {UserId}: code expired.", user.Id);
+			return Error.Unauthorized("Auth.PasswordChange.Expired");
+		}
+
+		// Проверка кода идёт до проверки нового пароля: иначе код можно было бы бесплатно
+		// "прощупывать", всегда присылая заведомо невалидную пару паролей и не тратя AttemptCount.
+		if (VerificationCodeGenerator.Hash(code) != pending.CodeHash)
+		{
+			pending.RecordFailedAttempt();
+
+			if (pending.HasExceededAttempts(passwordChangeOptions.Value.MaxAttempts))
+			{
+				await pendingPasswordChangeRepository.RemoveAsync(pending, ct);
+				await pendingPasswordChangeRepository.SaveChangesAsync(ct);
+				logger.LogWarning("Confirm change password for user {UserId} exceeded the maximum attempt count.", user.Id);
+				return Error.Validation("Auth.PasswordChange.TooManyAttempts");
+			}
+
+			await pendingPasswordChangeRepository.SaveChangesAsync(ct);
+			logger.LogWarning(
+				"Confirm change password failed for user {UserId}: incorrect code (attempt {AttemptCount}).",
+				user.Id, pending.AttemptCount);
+			return Error.Unauthorized("Auth.PasswordChange.Invalid");
+		}
+
+		if (string.IsNullOrWhiteSpace(newPassword))
+			return Error.Validation("Auth.User.WeakPassword");
+
+		if (newPassword != confirmNewPassword)
+			return Error.Validation("Auth.User.PasswordConfirmationMismatch");
+
+		// Тот же приём, что и ResetPasswordAsync: код уже подтвердил владение почтой, а текущий
+		// пароль уже проверен на шаге ChangePasswordAsync; встроенный Identity-токен - только чтобы
+		// честно прогнать PasswordValidators и хэширование через ResetPasswordAsync (это, а не прямое
+		// присваивание PasswordHash, корректно обновляет и SecurityStamp). Токен никогда не покидает
+		// этот метод.
+		var token = await userManager.GeneratePasswordResetTokenAsync(user);
+		var identityResult = await userManager.ResetPasswordAsync(user, token, newPassword);
 		if (!identityResult.Succeeded)
 			return identityResult.ToResult("Auth.User.PasswordChangeFailed", logger).Error!;
+
+		await pendingPasswordChangeRepository.RemoveAsync(pending, ct);
+		await pendingPasswordChangeRepository.SaveChangesAsync(ct);
+
+		// Успешная смена аннулирует и отдельную, незавершённую заявку на восстановление пароля
+		// (/forgot-password) для этого же пользователя - см. симметричную очистку в ResetPasswordAsync.
+		await RemovePendingPasswordResetIfAnyAsync(user.Id, ct);
 
 		await userManager.ResetAccessFailedCountAsync(user);
 		await userManager.SetLockoutEndDateAsync(user, null);
 
-		await refreshTokenRepository.RevokeAllForUserAsync(user.Id, timeProvider.GetUtcNow(), ct);
+		await refreshTokenRepository.RevokeAllForUserAsync(user.Id, now, ct);
 
-		logger.LogInformation("User {UserId} changed their password.", user.Id);
+		logger.LogInformation("User {UserId} completed password change via confirmation code.", user.Id);
 
 		return await IssueTokensAsync(user, tokenToRotate: null, ct);
 	}
@@ -539,6 +691,26 @@ internal sealed class AuthService(
 		}
 
 		return Result.Success();
+	}
+
+	private async Task RemovePendingPasswordChangeIfAnyAsync(Guid userId, CancellationToken ct)
+	{
+		var pendingChange = await pendingPasswordChangeRepository.GetByUserIdAsync(userId, ct);
+		if (pendingChange is null)
+			return;
+
+		await pendingPasswordChangeRepository.RemoveAsync(pendingChange, ct);
+		await pendingPasswordChangeRepository.SaveChangesAsync(ct);
+	}
+
+	private async Task RemovePendingPasswordResetIfAnyAsync(Guid userId, CancellationToken ct)
+	{
+		var pendingReset = await pendingPasswordResetRepository.GetByUserIdAsync(userId, ct);
+		if (pendingReset is null)
+			return;
+
+		await pendingPasswordResetRepository.RemoveAsync(pendingReset, ct);
+		await pendingPasswordResetRepository.SaveChangesAsync(ct);
 	}
 
 	private async Task<(Error Error, DateTimeOffset? LockoutEndUtc)> BuildLockedOutErrorAsync(ApplicationUser user)

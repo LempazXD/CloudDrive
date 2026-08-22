@@ -29,6 +29,7 @@ internal sealed class AuthServiceTestHarness
 	public IRefreshTokenReplayCache ReplayCache { get; } = Substitute.For<IRefreshTokenReplayCache>();
 	public IPendingRegistrationRepository PendingRegistrationRepository { get; } = Substitute.For<IPendingRegistrationRepository>();
 	public IPendingPasswordResetRepository PendingPasswordResetRepository { get; } = Substitute.For<IPendingPasswordResetRepository>();
+	public IPendingPasswordChangeRepository PendingPasswordChangeRepository { get; } = Substitute.For<IPendingPasswordChangeRepository>();
 	public IEmailSender EmailSender { get; } = Substitute.For<IEmailSender>();
 	public IGuidProvider GuidProvider { get; } = Substitute.For<IGuidProvider>();
 	public FakeTimeProvider TimeProvider { get; } = new(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
@@ -55,6 +56,12 @@ internal sealed class AuthServiceTestHarness
 		MaxAttempts = 5
 	};
 
+	public PasswordChangeOptions PasswordChangeOptions { get; } = new()
+	{
+		CodeLifetime = TimeSpan.FromMinutes(15),
+		MaxAttempts = 5
+	};
+
 	public AuthServiceTestHarness()
 	{
 		UserManager = IdentityMockFactory.CreateUserManager(UserStore, PasswordHasher, [UserValidator], [PasswordValidator]);
@@ -74,11 +81,13 @@ internal sealed class AuthServiceTestHarness
 		ReplayCache,
 		PendingRegistrationRepository,
 		PendingPasswordResetRepository,
+		PendingPasswordChangeRepository,
 		EmailSender,
 		GuidProvider,
 		TimeProvider,
 		Options.Create(JwtOptions),
 		Options.Create(RegistrationOptions),
 		Options.Create(PasswordResetOptions),
+		Options.Create(PasswordChangeOptions),
 		Logger);
 }
