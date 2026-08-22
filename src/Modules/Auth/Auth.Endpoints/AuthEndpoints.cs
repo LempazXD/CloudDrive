@@ -26,6 +26,9 @@ public static class AuthEndpoints
 		group.MapPost("/change-password", ChangePasswordAsync)
 			.RequireAuthorization()
 			.RequireRateLimiting(AuthRateLimitPolicies.ChangePassword);
+		group.MapPost("/confirm-change-password", ConfirmChangePasswordAsync)
+			.RequireAuthorization()
+			.RequireRateLimiting(AuthRateLimitPolicies.ConfirmChangePassword);
 		group.MapPost("/login", LoginAsync).RequireRateLimiting(AuthRateLimitPolicies.Login);
 		group.MapPost("/refresh", RefreshAsync);
 		group.MapPost("/logout", LogoutAsync);
@@ -69,6 +72,14 @@ public static class AuthEndpoints
 		var result = await authService.ChangePasswordAsync(
 			user.GetUserId(), request.CurrentPassword, request.NewPassword, request.ConfirmNewPassword, ct);
 		return result.Match(s => TypedResults.Ok(new ChangePasswordResponse(s.CodeExpiresAtUtc)));
+	}
+
+	private static async Task<Results<Ok<AuthTokensResponse>, ProblemHttpResult>> ConfirmChangePasswordAsync(
+		ConfirmChangePasswordRequest request, ClaimsPrincipal user, IAuthService authService, CancellationToken ct)
+	{
+		var result = await authService.ConfirmChangePasswordAsync(
+			user.GetUserId(), request.Code, request.NewPassword, request.ConfirmNewPassword, ct);
+		return result.Match(ToResponse);
 	}
 
 	private static async Task<Results<Ok<AuthTokensResponse>, ProblemHttpResult>> LoginAsync(
