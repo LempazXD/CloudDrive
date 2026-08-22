@@ -41,6 +41,21 @@ public sealed class ChangePasswordAsyncTests
 	}
 
 	[Fact]
+	public async Task ChangePasswordAsync_EmptyCurrentPassword_ReturnsInvalidCurrentPassword()
+	{
+		var harness = new AuthServiceTestHarness();
+		var sut = harness.CreateSut();
+
+		var result = await sut.ChangePasswordAsync(
+			Guid.NewGuid(), "", "P@ssw0rd!", "P@ssw0rd!", CancellationToken.None);
+
+		Assert.True(result.IsFailure);
+		Assert.Equal(ErrorType.Unauthorized, result.Error!.Type);
+		Assert.Equal("Auth.User.InvalidCurrentPassword", result.Error.Code);
+		_ = harness.UserManager.DidNotReceive().FindByIdAsync(Arg.Any<string>());
+	}
+
+	[Fact]
 	public async Task ChangePasswordAsync_UserNotFound_ReturnsNotFound()
 	{
 		var harness = new AuthServiceTestHarness();

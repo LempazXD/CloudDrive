@@ -368,6 +368,12 @@ internal sealed class AuthService(
 		if (newPassword != confirmNewPassword)
 			return Error.Validation("Auth.User.PasswordConfirmationMismatch");
 
+		// Пустая строка всё равно никогда не пройдёт проверку пароля - тот же исход для клиента,
+		// что "неверный пароль", но без похода в CheckPasswordAsync (PasswordHasher бросает
+		// ArgumentNullException/кидает на пустой providedPassword в некоторых реализациях хешера).
+		if (string.IsNullOrWhiteSpace(currentPassword))
+			return Error.Unauthorized("Auth.User.InvalidCurrentPassword");
+
 		var now = timeProvider.GetUtcNow();
 		await pendingPasswordChangeRepository.DeleteExpiredAsync(now, ct);
 
