@@ -17,6 +17,8 @@ public interface IFilesService
 	Task<Result<FileSummary>> CompleteUploadAsync(
 		Guid ownerId, Guid fileId, IReadOnlyList<BlobUploadedPart> parts, CancellationToken ct);
 
+	Task<Result<FileSummary>> RenameFileAsync(Guid ownerId, Guid fileId, string name, CancellationToken ct);
+
 	Task<Result<CursorPage<FileSummary>>> ListFilesAsync(
 		Guid ownerId, Guid? folderId, string? cursor, int limit, CancellationToken ct);
 

@@ -145,6 +145,48 @@ internal sealed class FilesService(
 			FileStatus.Completed, file.CreatedAtUtc));
 	}
 
+	public async Task<Result<FileSummary>> RenameFileAsync(Guid ownerId, Guid fileId, string name, CancellationToken ct)
+	{
+		var nameValidation = EntityNameValidator.Validate(
+			name, MaxOriginalFileNameLength, "Files.File.InvalidFileName", "Files.File.FileNameTooLong");
+		if (nameValidation.IsFailure)
+			return nameValidation.Error!;
+		var normalizedName = nameValidation.Value;
+
+		var file = await storedFileRepository.GetByIdAsync(fileId, ownerId, ct);
+		if (file is null)
+			return Error.NotFound("Files.File.NotFound");
+
+		// Имя не изменилось (после нормализации) - успех без записи: не только оптимизация, но и
+		// повод не трогать UpdatedAtUtc, когда фактически ничего не поменялось.
+		if (file.OriginalFileName == normalizedName)
+			return Result.Success(ToSummary(file));
+
+		var now = timeProvider.GetUtcNow();
+		bool renamed;
+		try
+		{
+			renamed = await storedFileRepository.RenameAsync(fileId, ownerId, normalizedName, now, ct);
+		}
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsUniqueViolation(ex))
+		{
+			logger.LogWarning(
+				"Rename file hit a unique-constraint race on name {Name} for file {FileId} owned by {OwnerId}.",
+				normalizedName, fileId, ownerId);
+			return Error.Conflict("Files.File.NameConflict");
+		}
+
+		// false здесь означает, что файл удалили в промежутке между GetByIdAsync выше и этим
+		// вызовом - тоже NotFound, а не молчаливый успех.
+		if (!renamed)
+			return Error.NotFound("Files.File.NotFound");
+
+		logger.LogInformation("File {FileId} renamed for owner {OwnerId}.", fileId, ownerId);
+
+		return Result.Success(new FileSummary(
+			file.Id, file.FolderId, normalizedName, file.ContentType, file.SizeBytes, file.Status, file.CreatedAtUtc));
+	}
+
 	public async Task<Result<CursorPage<FileSummary>>> ListFilesAsync(
 		Guid ownerId, Guid? folderId, string? cursor, int limit, CancellationToken ct)
 	{

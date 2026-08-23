@@ -50,6 +50,47 @@ internal sealed class FolderService(
 		return Result.Success(new FolderSummary(folder.Id, folder.ParentFolderId, folder.Name, folder.CreatedAtUtc));
 	}
 
+	public async Task<Result<FolderSummary>> RenameFolderAsync(Guid ownerId, Guid folderId, string name, CancellationToken ct)
+	{
+		var nameValidation = EntityNameValidator.Validate(
+			name, MaxFolderNameLength, "Files.Folder.InvalidName", "Files.Folder.NameTooLong");
+		if (nameValidation.IsFailure)
+			return nameValidation.Error!;
+		var normalizedName = nameValidation.Value;
+
+		var folder = await folderRepository.GetByIdAsync(folderId, ownerId, ct);
+		if (folder is null)
+			return Error.NotFound("Files.Folder.NotFound");
+
+		// Имя не изменилось (после нормализации) - успех без записи, не только как оптимизация:
+		// так не нужно решать, нарушает ли UPDATE уникальный индекс сам против себя.
+		if (folder.Name == normalizedName)
+			return Result.Success(new FolderSummary(folder.Id, folder.ParentFolderId, folder.Name, folder.CreatedAtUtc));
+
+		bool renamed;
+		try
+		{
+			renamed = await folderRepository.RenameAsync(folderId, ownerId, normalizedName, ct);
+		}
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsUniqueViolation(ex))
+		{
+			logger.LogWarning(
+				"Rename folder hit a unique-constraint race on name {Name} for folder {FolderId} owned by {OwnerId}.",
+				normalizedName, folderId, ownerId);
+			return Error.Conflict("Files.Folder.NameConflict");
+		}
+
+		// false здесь означает, что папку удалили в промежутке между GetByIdAsync выше и этим
+		// вызовом - тоже NotFound, а не молчаливый успех (bool от RenameAsync проверяется
+		// явно, в отличие от DeleteFolderAsync ниже, где он сейчас отбрасывается).
+		if (!renamed)
+			return Error.NotFound("Files.Folder.NotFound");
+
+		logger.LogInformation("Folder {FolderId} renamed for owner {OwnerId}.", folderId, ownerId);
+
+		return Result.Success(new FolderSummary(folder.Id, folder.ParentFolderId, normalizedName, folder.CreatedAtUtc));
+	}
+
 	public async Task<Result<FolderSummary>> GetFolderAsync(Guid ownerId, Guid folderId, CancellationToken ct)
 	{
 		var folder = await folderRepository.GetByIdAsync(folderId, ownerId, ct);
