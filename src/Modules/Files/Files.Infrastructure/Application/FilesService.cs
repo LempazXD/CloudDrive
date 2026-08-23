@@ -3,10 +3,8 @@ using Files.Core.Application.Abstractions;
 using Files.Core.Application.Pagination;
 using Files.Core.Domain;
 using Files.Infrastructure.Configuration;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Npgsql;
 using Shared.Kernel.Guids;
 using Shared.Kernel.Results;
 
@@ -33,11 +31,11 @@ internal sealed class FilesService(
 		string sha256Declared,
 		CancellationToken ct)
 	{
-		if (string.IsNullOrWhiteSpace(originalFileName))
-			return Error.Validation("Files.File.InvalidFileName");
-
-		if (originalFileName.Length > MaxOriginalFileNameLength)
-			return Error.Validation("Files.File.FileNameTooLong");
+		var nameValidation = EntityNameValidator.Validate(
+			originalFileName, MaxOriginalFileNameLength, "Files.File.InvalidFileName", "Files.File.FileNameTooLong");
+		if (nameValidation.IsFailure)
+			return nameValidation.Error!;
+		var normalizedFileName = nameValidation.Value;
 
 		if (string.IsNullOrWhiteSpace(contentType))
 			return Error.Validation("Files.File.InvalidContentType");
@@ -61,7 +59,7 @@ internal sealed class FilesService(
 			fileId,
 			ownerId,
 			folderId,
-			originalFileName,
+			normalizedFileName,
 			contentType,
 			sizeBytes,
 			sha256Declared,
@@ -75,14 +73,14 @@ internal sealed class FilesService(
 			await storedFileRepository.AddAsync(file, ct);
 			await storedFileRepository.SaveChangesAsync(ct);
 		}
-		catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsUniqueViolation(ex))
 		{
 			// Тот же паттерн, что и в Auth.Infrastructure.Application.AuthService.RegisterAsync:
 			// уникальный индекс - подстраховка от гонки двух параллельных initiate с одинаковым
 			// именем в одной папке, а не единственная линия защиты.
 			logger.LogWarning(
 				"Initiate upload hit a unique-constraint race on name {OriginalFileName} in folder {FolderId} for owner {OwnerId}.",
-				originalFileName, folderId, ownerId);
+				normalizedFileName, folderId, ownerId);
 			return Error.Conflict("Files.File.NameConflict");
 		}
 

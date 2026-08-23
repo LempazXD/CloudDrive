@@ -51,6 +51,7 @@
 	"Files.File.InvalidCursor": "Некорректный курсор пагинации.",
 	"Files.Folder.NotFound": "Папка не найдена.",
 	"Files.Folder.InvalidName": "Некорректное имя папки.",
+	"Files.Folder.NameTooLong": "Имя папки не должно превышать 255 символов.",
 	"Files.Folder.NameConflict": "Папка с таким именем уже существует здесь.",
 	"Files.Folder.NotEmpty": "Папка не пуста. Сначала удалите или переместите её содержимое."
 }

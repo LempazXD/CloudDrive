@@ -24,6 +24,20 @@ public sealed class InitiateUploadAsyncTests
 	}
 
 	[Fact]
+	public async Task InitiateUploadAsync_FileNameOver255Characters_ReturnsFileNameTooLong()
+	{
+		var harness = new FilesServiceTestHarness();
+		var sut = harness.CreateSut();
+		var name256 = new string('a', 256);
+
+		var result = await sut.InitiateUploadAsync(
+			Guid.NewGuid(), null, name256, "text/plain", 100, ValidSha256, CancellationToken.None);
+
+		Assert.True(result.IsFailure);
+		Assert.Equal("Files.File.FileNameTooLong", result.Error!.Code);
+	}
+
+	[Fact]
 	public async Task InitiateUploadAsync_NonPositiveSize_ReturnsInvalidSize()
 	{
 		var harness = new FilesServiceTestHarness();
@@ -89,5 +103,23 @@ public sealed class InitiateUploadAsyncTests
 			Arg.Is<Core.Domain.StoredFile>(f => f != null && f.Id == fileId && f.StorageKey == $"{ownerId}/{fileId}"),
 			Arg.Any<CancellationToken>());
 		_ = harness.StoredFileRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
+	public async Task InitiateUploadAsync_TrimsWhitespace()
+	{
+		var harness = new FilesServiceTestHarness();
+		harness.BlobStorage
+			.InitiateUploadAsync(Arg.Any<string>(), "text/plain", 100, Arg.Any<CancellationToken>())
+			.Returns(new BlobUploadTarget(null, [new BlobUploadPart(1, "https://storage.local/presigned")]));
+		var sut = harness.CreateSut();
+
+		var result = await sut.InitiateUploadAsync(
+			Guid.NewGuid(), null, "  report.txt  ", "text/plain", 100, ValidSha256, CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		_ = harness.StoredFileRepository.Received(1).AddAsync(
+			Arg.Is<Core.Domain.StoredFile>(f => f != null && f.OriginalFileName == "report.txt"),
+			Arg.Any<CancellationToken>());
 	}
 }

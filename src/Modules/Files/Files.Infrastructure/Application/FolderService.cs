@@ -1,8 +1,6 @@
 using Files.Core.Application.Abstractions;
 using Files.Core.Domain;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Npgsql;
 using Shared.Kernel.Guids;
 using Shared.Kernel.Results;
 
@@ -15,30 +13,35 @@ internal sealed class FolderService(
 	TimeProvider timeProvider,
 	ILogger<FolderService> logger) : IFolderService
 {
+	private const int MaxFolderNameLength = 255;
+
 	public async Task<Result<FolderSummary>> CreateFolderAsync(
 		Guid ownerId, Guid? parentFolderId, string name, CancellationToken ct)
 	{
-		if (string.IsNullOrWhiteSpace(name))
-			return Error.Validation("Files.Folder.InvalidName");
+		var nameValidation = EntityNameValidator.Validate(
+			name, MaxFolderNameLength, "Files.Folder.InvalidName", "Files.Folder.NameTooLong");
+		if (nameValidation.IsFailure)
+			return nameValidation.Error!;
+		var normalizedName = nameValidation.Value;
 
 		if (parentFolderId is { } parentId && !await folderRepository.ExistsAsync(parentId, ownerId, ct))
 			return Error.NotFound("Files.Folder.NotFound");
 
-		var folder = Folder.Create(guidProvider.CreateVersion7(), ownerId, parentFolderId, name, timeProvider.GetUtcNow());
+		var folder = Folder.Create(guidProvider.CreateVersion7(), ownerId, parentFolderId, normalizedName, timeProvider.GetUtcNow());
 
 		try
 		{
 			await folderRepository.AddAsync(folder, ct);
 			await folderRepository.SaveChangesAsync(ct);
 		}
-		catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsUniqueViolation(ex))
 		{
 			// Тот же паттерн, что и в Files.Infrastructure.Application.FilesService.InitiateUploadAsync:
 			// уникальный индекс - подстраховка от гонки двух параллельных create с одинаковым
 			// именем в одной родительской папке, а не единственная линия защиты.
 			logger.LogWarning(
 				"Create folder hit a unique-constraint race on name {Name} under parent {ParentFolderId} for owner {OwnerId}.",
-				name, parentFolderId, ownerId);
+				normalizedName, parentFolderId, ownerId);
 			return Error.Conflict("Files.Folder.NameConflict");
 		}
 

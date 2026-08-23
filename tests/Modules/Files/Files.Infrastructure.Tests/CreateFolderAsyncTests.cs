@@ -20,6 +20,33 @@ public sealed class CreateFolderAsyncTests
 	}
 
 	[Fact]
+	public async Task CreateFolderAsync_NameOver255Characters_ReturnsNameTooLong()
+	{
+		// Ранее такой длины ничего не проверялось на уровне сервиса, и создание падало
+		// необработанным DbUpdateException (500) из-за HasMaxLength(255) на столбце.
+		var harness = new FolderServiceTestHarness();
+		var sut = harness.CreateSut();
+		var name256 = new string('a', 256);
+
+		var result = await sut.CreateFolderAsync(Guid.NewGuid(), null, name256, CancellationToken.None);
+
+		Assert.True(result.IsFailure);
+		Assert.Equal("Files.Folder.NameTooLong", result.Error!.Code);
+	}
+
+	[Fact]
+	public async Task CreateFolderAsync_TrimsWhitespace()
+	{
+		var harness = new FolderServiceTestHarness();
+		var sut = harness.CreateSut();
+
+		var result = await sut.CreateFolderAsync(Guid.NewGuid(), null, "  Photos  ", CancellationToken.None);
+
+		Assert.True(result.IsSuccess);
+		Assert.Equal("Photos", result.Value.Name);
+	}
+
+	[Fact]
 	public async Task CreateFolderAsync_UnknownParent_ReturnsFolderNotFound()
 	{
 		var harness = new FolderServiceTestHarness();
