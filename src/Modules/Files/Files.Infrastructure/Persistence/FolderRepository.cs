@@ -21,6 +21,11 @@ internal sealed class FolderRepository(FilesDbContext db) : IFolderRepository
 	public Task<bool> HasSubfoldersAsync(Guid folderId, CancellationToken ct) =>
 		db.Folders.AsNoTracking().AnyAsync(f => f.ParentFolderId == folderId, ct);
 
+	public async Task<bool> RenameAsync(Guid id, Guid ownerId, string newName, CancellationToken ct) =>
+		await db.Folders
+			.Where(f => f.Id == id && f.OwnerId == ownerId)
+			.ExecuteUpdateAsync(s => s.SetProperty(f => f.Name, newName), ct) == 1;
+
 	public async Task<bool> DeleteAsync(Guid id, Guid ownerId, CancellationToken ct) =>
 		await db.Folders
 			.Where(f => f.Id == id && f.OwnerId == ownerId)

@@ -25,6 +25,8 @@ public interface IStoredFileRepository
 
 	Task MarkFailedAsync(Guid id, DateTimeOffset nowUtc, CancellationToken ct);
 
+	Task<bool> RenameAsync(Guid id, Guid ownerId, string newName, DateTimeOffset nowUtc, CancellationToken ct);
+
 	Task<bool> DeleteAsync(Guid id, Guid ownerId, CancellationToken ct);
 
 	Task SaveChangesAsync(CancellationToken ct);

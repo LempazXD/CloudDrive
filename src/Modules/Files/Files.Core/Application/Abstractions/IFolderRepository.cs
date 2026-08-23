@@ -12,6 +12,8 @@ public interface IFolderRepository
 
 	Task<bool> HasSubfoldersAsync(Guid folderId, CancellationToken ct);
 
+	Task<bool> RenameAsync(Guid id, Guid ownerId, string newName, CancellationToken ct);
+
 	Task<bool> DeleteAsync(Guid id, Guid ownerId, CancellationToken ct);
 
 	Task SaveChangesAsync(CancellationToken ct);
