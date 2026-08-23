@@ -16,6 +16,7 @@ public static class FoldersEndpoints
 		var group = app.MapGroup("/api/folders").WithTags("Folders").RequireAuthorization();
 
 		group.MapPost("/", CreateFolderAsync);
+		group.MapPost("/{id:guid}/rename", RenameFolderAsync);
 		group.MapGet("/{id:guid}", GetFolderAsync);
 		group.MapDelete("/{id:guid}", DeleteFolderAsync);
 
@@ -26,6 +27,13 @@ public static class FoldersEndpoints
 		CreateFolderRequest request, ClaimsPrincipal user, IFolderService folderService, CancellationToken ct)
 	{
 		var result = await folderService.CreateFolderAsync(user.GetOwnerId(), request.ParentFolderId, request.Name, ct);
+		return result.Match(f => TypedResults.Ok(ToFolderResponse(f)));
+	}
+
+	private static async Task<Results<Ok<FolderResponse>, ProblemHttpResult>> RenameFolderAsync(
+		Guid id, RenameFolderRequest request, ClaimsPrincipal user, IFolderService folderService, CancellationToken ct)
+	{
+		var result = await folderService.RenameFolderAsync(user.GetOwnerId(), id, request.Name, ct);
 		return result.Match(f => TypedResults.Ok(ToFolderResponse(f)));
 	}
 
