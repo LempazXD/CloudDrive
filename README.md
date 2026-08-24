@@ -104,3 +104,12 @@ dotnet run --project src/Bootstrapper/CloudDrive.Api
 - Mailpit (письма с кодом подтверждения регистрации): <http://localhost:8025>
 
 > Альтернатива — **локально установленный** PostgreSQL вместо контейнера: запустите его на `localhost:5432` и укажите порт `5432` в user-secret (шаг 2).
+
+## Тестирование
+
+```bash
+dotnet test CloudDrive.slnx
+dotnet test --filter "FullyQualifiedName~SomeTestName"
+```
+
+Юнит-тесты (`xUnit` + `NSubstitute`) покрывают сервисный слой модулей — `Auth.Infrastructure.Tests`, `Files.Infrastructure.Tests`. `Files.Infrastructure.IntegrationTests` дополнительно поднимает настоящий PostgreSQL через `Testcontainers` (эфемерный контейнер на каждый запуск, независимый от `docker compose` из шагов выше — нужен только запущенный Docker) и проверяет защиту от циклов при перемещении папок.
