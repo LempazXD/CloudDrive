@@ -29,5 +29,6 @@
 	</Folder>
 	<Folder Name="/tests/Modules/Files/">
 		<Project Path="tests/Modules/Files/Files.Infrastructure.Tests/Files.Infrastructure.Tests.csproj" />
+		<Project Path="tests/Modules/Files/Files.Infrastructure.IntegrationTests/Files.Infrastructure.IntegrationTests.csproj" />
 	</Folder>
 </Solution>
