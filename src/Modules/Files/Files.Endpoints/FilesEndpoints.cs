@@ -18,6 +18,7 @@ public static class FilesEndpoints
 		group.MapPost("/", InitiateUploadAsync);
 		group.MapPost("/{id:guid}/complete", CompleteUploadAsync);
 		group.MapPost("/{id:guid}/rename", RenameFileAsync);
+		group.MapPost("/{id:guid}/move", MoveFileAsync);
 		group.MapGet("/", ListFilesAsync);
 		group.MapGet("/{id:guid}/download", GetDownloadUrlAsync);
 		group.MapDelete("/{id:guid}", DeleteFileAsync);
@@ -59,6 +60,13 @@ public static class FilesEndpoints
 		Guid id, RenameFileRequest request, ClaimsPrincipal user, IFilesService filesService, CancellationToken ct)
 	{
 		var result = await filesService.RenameFileAsync(user.GetOwnerId(), id, request.Name, ct);
+		return result.Match(file => TypedResults.Ok(ToFileResponse(file)));
+	}
+
+	private static async Task<Results<Ok<FileResponse>, ProblemHttpResult>> MoveFileAsync(
+		Guid id, MoveFileRequest request, ClaimsPrincipal user, IFilesService filesService, CancellationToken ct)
+	{
+		var result = await filesService.MoveFileAsync(user.GetOwnerId(), id, request.FolderId, ct);
 		return result.Match(file => TypedResults.Ok(ToFileResponse(file)));
 	}
 
