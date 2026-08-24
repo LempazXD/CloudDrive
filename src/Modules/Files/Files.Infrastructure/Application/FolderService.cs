@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Files.Core.Application.Abstractions;
 using Files.Core.Domain;
 using Microsoft.Extensions.Logging;
@@ -89,6 +90,67 @@ internal sealed class FolderService(
 		logger.LogInformation("Folder {FolderId} renamed for owner {OwnerId}.", folderId, ownerId);
 
 		return Result.Success(new FolderSummary(folder.Id, folder.ParentFolderId, normalizedName, folder.CreatedAtUtc));
+	}
+
+	public async Task<Result<FolderSummary>> MoveFolderAsync(Guid ownerId, Guid folderId, Guid? newParentFolderId, CancellationToken ct)
+	{
+		var folder = await folderRepository.GetByIdAsync(folderId, ownerId, ct);
+		if (folder is null)
+			return Error.NotFound("Files.Folder.NotFound");
+
+		// Родитель не изменился (в т.ч. null -> null, перемещение в корень уже стоящей в корне
+		// папки) - успех без записи. Стоит раньше проверок ниже намеренно: текущий родитель уже
+		// гарантированно существует (FK Restrict не даст ему исчезнуть, пока эта папка на него
+		// ссылается), повторно проверять его - лишний поход в БД.
+		if (folder.ParentFolderId == newParentFolderId)
+			return Result.Success(new FolderSummary(folder.Id, folder.ParentFolderId, folder.Name, folder.CreatedAtUtc));
+
+		if (newParentFolderId is { } newParentId)
+		{
+			// Дешёвая проверка без похода в БД - частный случай цикла (папка сама себе родитель),
+			// который MoveAsync поймал бы и так через CTE, но незачем платить за поход в БД ради
+			// самого частого случайного случая (повторный клик/дабл-сабмит).
+			if (newParentId == folderId)
+				return Error.Conflict("Files.Folder.CircularMove");
+
+			if (!await folderRepository.ExistsAsync(newParentId, ownerId, ct))
+				return Error.NotFound("Files.Folder.NotFound");
+		}
+
+		FolderMoveOutcome outcome;
+		try
+		{
+			outcome = await folderRepository.MoveAsync(folderId, ownerId, newParentFolderId, ct);
+		}
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsUniqueViolation(ex))
+		{
+			logger.LogWarning(
+				"Move folder hit a unique-constraint race on name {Name} for folder {FolderId} owned by {OwnerId}.",
+				folder.Name, folderId, ownerId);
+			return Error.Conflict("Files.Folder.NameConflict");
+		}
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsForeignKeyViolation(ex))
+		{
+			// Целевой родитель удалён в промежутке между ExistsAsync выше и записью внутри MoveAsync.
+			logger.LogWarning(
+				"Move folder {FolderId} (owner {OwnerId}) hit a foreign-key race: target parent {ParentFolderId} vanished.",
+				folderId, ownerId, newParentFolderId);
+			return Error.NotFound("Files.Folder.NotFound");
+		}
+
+		switch (outcome)
+		{
+			case FolderMoveOutcome.Moved:
+				logger.LogInformation("Folder {FolderId} moved for owner {OwnerId}.", folderId, ownerId);
+				return Result.Success(new FolderSummary(folder.Id, newParentFolderId, folder.Name, folder.CreatedAtUtc));
+			case FolderMoveOutcome.NotFound:
+				// Папку удалили в промежутке между GetByIdAsync выше и записью внутри MoveAsync.
+				return Error.NotFound("Files.Folder.NotFound");
+			case FolderMoveOutcome.WouldCreateCycle:
+				return Error.Conflict("Files.Folder.CircularMove");
+			default:
+				throw new UnreachableException();
+		}
 	}
 
 	public async Task<Result<FolderSummary>> GetFolderAsync(Guid ownerId, Guid folderId, CancellationToken ct)

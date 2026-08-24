@@ -18,4 +18,14 @@ internal static class UniqueConstraintExceptionHelper
 	internal static bool IsUniqueViolation(Exception ex) =>
 		ex is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } ||
 		ex is DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } };
+
+	/// <summary>
+	/// true для нарушения FK - на Folders/StoredFiles единственный FK - self-reference
+	/// ParentFolderId/FolderId, так что этот код однозначно означает "целевая папка пропала
+	/// между проверкой существования и записью" (move/create гонка с конкурентным удалением).
+	/// Та же двойная raw/wrapped форма, что и IsUniqueViolation, и по той же причине.
+	/// </summary>
+	internal static bool IsForeignKeyViolation(Exception ex) =>
+		ex is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation } ||
+		ex is DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation } };
 }

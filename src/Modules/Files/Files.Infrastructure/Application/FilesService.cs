@@ -187,6 +187,53 @@ internal sealed class FilesService(
 			file.Id, file.FolderId, normalizedName, file.ContentType, file.SizeBytes, file.Status, file.CreatedAtUtc));
 	}
 
+	public async Task<Result<FileSummary>> MoveFileAsync(Guid ownerId, Guid fileId, Guid? newFolderId, CancellationToken ct)
+	{
+		var file = await storedFileRepository.GetByIdAsync(fileId, ownerId, ct);
+		if (file is null)
+			return Error.NotFound("Files.File.NotFound");
+
+		// Папка не изменилась - успех без записи: та же причина, что у RenameFileAsync -
+		// не трогать UpdatedAtUtc зря и не думать о самоконфликте с уникальным индексом.
+		if (file.FolderId == newFolderId)
+			return Result.Success(ToSummary(file));
+
+		if (newFolderId is { } targetFolderId && !await folderRepository.ExistsAsync(targetFolderId, ownerId, ct))
+			return Error.NotFound("Files.Folder.NotFound");
+
+		var now = timeProvider.GetUtcNow();
+		bool moved;
+		try
+		{
+			moved = await storedFileRepository.MoveAsync(fileId, ownerId, newFolderId, now, ct);
+		}
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsUniqueViolation(ex))
+		{
+			logger.LogWarning(
+				"Move file hit a unique-constraint race on name {Name} for file {FileId} owned by {OwnerId}.",
+				file.OriginalFileName, fileId, ownerId);
+			return Error.Conflict("Files.File.NameConflict");
+		}
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsForeignKeyViolation(ex))
+		{
+			// Целевая папка удалена в промежутке между проверкой ExistsAsync выше и записью.
+			logger.LogWarning(
+				"Move file {FileId} (owner {OwnerId}) hit a foreign-key race: target folder {FolderId} vanished.",
+				fileId, ownerId, newFolderId);
+			return Error.NotFound("Files.Folder.NotFound");
+		}
+
+		// false здесь означает, что файл удалили в промежутке между GetByIdAsync выше и этим
+		// вызовом - тоже NotFound, а не молчаливый успех (тот же паттерн, что у RenameFileAsync).
+		if (!moved)
+			return Error.NotFound("Files.File.NotFound");
+
+		logger.LogInformation("File {FileId} moved for owner {OwnerId}.", fileId, ownerId);
+
+		return Result.Success(new FileSummary(
+			file.Id, newFolderId, file.OriginalFileName, file.ContentType, file.SizeBytes, file.Status, file.CreatedAtUtc));
+	}
+
 	public async Task<Result<CursorPage<FileSummary>>> ListFilesAsync(
 		Guid ownerId, Guid? folderId, string? cursor, int limit, CancellationToken ct)
 	{

@@ -8,6 +8,8 @@ public interface IFolderService
 
 	Task<Result<FolderSummary>> RenameFolderAsync(Guid ownerId, Guid folderId, string name, CancellationToken ct);
 
+	Task<Result<FolderSummary>> MoveFolderAsync(Guid ownerId, Guid folderId, Guid? newParentFolderId, CancellationToken ct);
+
 	Task<Result<FolderSummary>> GetFolderAsync(Guid ownerId, Guid folderId, CancellationToken ct);
 
 	Task<Result> DeleteFolderAsync(Guid ownerId, Guid folderId, CancellationToken ct);

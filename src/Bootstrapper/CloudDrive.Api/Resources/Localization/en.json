@@ -53,5 +53,6 @@
 	"Files.Folder.InvalidName": "The folder name is not valid.",
 	"Files.Folder.NameTooLong": "The folder name must not exceed 255 characters.",
 	"Files.Folder.NameConflict": "A folder with this name already exists here.",
-	"Files.Folder.NotEmpty": "The folder is not empty. Delete or move its contents first."
+	"Files.Folder.NotEmpty": "The folder is not empty. Delete or move its contents first.",
+	"Files.Folder.CircularMove": "Cannot move a folder into itself or one of its own subfolders."
 }
