@@ -78,6 +78,15 @@ internal sealed class StoredFileRepository(FilesDbContext db) : IStoredFileRepos
 					.SetProperty(f => f.UpdatedAtUtc, nowUtc),
 				ct) == 1;
 
+	public async Task<bool> MoveAsync(Guid id, Guid ownerId, Guid? newFolderId, DateTimeOffset nowUtc, CancellationToken ct) =>
+		await db.StoredFiles
+			.Where(f => f.Id == id && f.OwnerId == ownerId)
+			.ExecuteUpdateAsync(
+				s => s
+					.SetProperty(f => f.FolderId, newFolderId)
+					.SetProperty(f => f.UpdatedAtUtc, nowUtc),
+				ct) == 1;
+
 	public async Task<bool> DeleteAsync(Guid id, Guid ownerId, CancellationToken ct) =>
 		await db.StoredFiles
 			.Where(f => f.Id == id && f.OwnerId == ownerId)

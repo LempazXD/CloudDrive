@@ -27,6 +27,8 @@ public interface IStoredFileRepository
 
 	Task<bool> RenameAsync(Guid id, Guid ownerId, string newName, DateTimeOffset nowUtc, CancellationToken ct);
 
+	Task<bool> MoveAsync(Guid id, Guid ownerId, Guid? newFolderId, DateTimeOffset nowUtc, CancellationToken ct);
+
 	Task<bool> DeleteAsync(Guid id, Guid ownerId, CancellationToken ct);
 
 	Task SaveChangesAsync(CancellationToken ct);
