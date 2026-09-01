@@ -20,8 +20,11 @@ public static class FilesEndpoints
 		group.MapPost("/{id:guid}/rename", RenameFileAsync);
 		group.MapPost("/{id:guid}/move", MoveFileAsync);
 		group.MapGet("/", ListFilesAsync);
+		group.MapGet("/trash", ListTrashAsync);
 		group.MapGet("/{id:guid}/download", GetDownloadUrlAsync);
 		group.MapDelete("/{id:guid}", DeleteFileAsync);
+		group.MapPost("/{id:guid}/restore", RestoreFileAsync);
+		group.MapPost("/{id:guid}/purge", PurgeFileAsync);
 
 		return app;
 	}
@@ -94,6 +97,29 @@ public static class FilesEndpoints
 		return result.Match(TypedResults.Ok);
 	}
 
+	private static async Task<Results<Ok<FileResponse>, ProblemHttpResult>> RestoreFileAsync(
+		Guid id, ClaimsPrincipal user, IFilesService filesService, CancellationToken ct)
+	{
+		var result = await filesService.RestoreFileAsync(user.GetOwnerId(), id, ct);
+		return result.Match(file => TypedResults.Ok(ToFileResponse(file)));
+	}
+
+	private static async Task<Results<Ok<FileListResponse>, ProblemHttpResult>> ListTrashAsync(
+		[AsParameters] ListTrashRequest request, ClaimsPrincipal user, IFilesService filesService, CancellationToken ct)
+	{
+		var result = await filesService.ListTrashAsync(user.GetOwnerId(), request.Cursor, request.Limit ?? 20, ct);
+
+		return result.Match(page => TypedResults.Ok(
+			new FileListResponse(page.Items.Select(ToFileResponse).ToList(), page.NextCursor)));
+	}
+
+	private static async Task<Results<Ok, ProblemHttpResult>> PurgeFileAsync(
+		Guid id, ClaimsPrincipal user, IFilesService filesService, CancellationToken ct)
+	{
+		var result = await filesService.PurgeFileAsync(user.GetOwnerId(), id, ct);
+		return result.Match(TypedResults.Ok);
+	}
+
 	private static FileResponse ToFileResponse(FileSummary file) => new(
 		file.Id,
 		file.FolderId,
@@ -101,5 +127,7 @@ public static class FilesEndpoints
 		file.ContentType,
 		file.SizeBytes,
 		file.Status.ToString(),
-		file.CreatedAtUtc);
+		file.CreatedAtUtc,
+		file.DeletedAtUtc,
+		file.PurgeAtUtc);
 }

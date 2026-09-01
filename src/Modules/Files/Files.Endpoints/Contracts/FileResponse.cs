@@ -7,4 +7,6 @@ public sealed record FileResponse(
 	string ContentType,
 	long SizeBytes,
 	string Status,
-	DateTimeOffset CreatedAtUtc);
+	DateTimeOffset CreatedAtUtc,
+	DateTimeOffset? DeletedAtUtc,
+	DateTimeOffset? PurgeAtUtc);
