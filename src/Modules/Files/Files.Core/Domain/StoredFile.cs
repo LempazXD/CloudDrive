@@ -33,6 +33,9 @@ public sealed class StoredFile
 
 	public DateTimeOffset UpdatedAtUtc { get; private set; }
 
+	/// <summary> Null - активен. Непустое - в корзине с этого момента, окончательно удаляется фоновой очисткой по истечении срока хранения (см. TrashOptions). Меняется только через ExecuteUpdateAsync в StoredFileRepository, никогда через доменный метод - тот же принцип, что у Status. </summary>
+	public DateTimeOffset? DeletedAtUtc { get; private set; }
+
 	public static StoredFile Create(
 		Guid id,
 		Guid ownerId,
