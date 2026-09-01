@@ -72,6 +72,7 @@ public static class FilesModuleExtensions
 		services.AddOptions<TrashOptions>()
 			.Bind(configuration.GetSection("Trash"))
 			.Validate(o => o.RetentionPeriod > TimeSpan.Zero, "Trash:RetentionPeriod must be positive.")
+			.Validate(o => o.PurgeBatchSize > 0, "Trash:PurgeBatchSize must be positive.")
 			.ValidateOnStart();
 	}
 }
