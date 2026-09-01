@@ -9,4 +9,6 @@ public sealed record FileSummary(
 	string ContentType,
 	long SizeBytes,
 	FileStatus Status,
-	DateTimeOffset CreatedAtUtc);
+	DateTimeOffset CreatedAtUtc,
+	DateTimeOffset? DeletedAtUtc = null,
+	DateTimeOffset? PurgeAtUtc = null);

@@ -19,7 +19,7 @@ internal sealed class StoredFileRepository(FilesDbContext db) : IStoredFileRepos
 		Guid ownerId, Guid? folderId, Guid? afterId, int limit, CancellationToken ct)
 	{
 		var query = db.StoredFiles.AsNoTracking()
-			.Where(f => f.OwnerId == ownerId && f.FolderId == folderId);
+			.Where(f => f.OwnerId == ownerId && f.FolderId == folderId && f.DeletedAtUtc == null);
 
 		if (afterId is { } cursor)
 			query = query.Where(f => f.Id > cursor);
@@ -90,6 +90,52 @@ internal sealed class StoredFileRepository(FilesDbContext db) : IStoredFileRepos
 	public async Task<bool> DeleteAsync(Guid id, Guid ownerId, CancellationToken ct) =>
 		await db.StoredFiles
 			.Where(f => f.Id == id && f.OwnerId == ownerId)
+			.ExecuteDeleteAsync(ct) == 1;
+
+	public async Task<bool> SoftDeleteAsync(Guid id, Guid ownerId, DateTimeOffset nowUtc, CancellationToken ct) =>
+		await db.StoredFiles
+			.Where(f => f.Id == id && f.OwnerId == ownerId)
+			.ExecuteUpdateAsync(
+				s => s
+					.SetProperty(f => f.DeletedAtUtc, nowUtc)
+					.SetProperty(f => f.UpdatedAtUtc, nowUtc),
+				ct) == 1;
+
+	public async Task<bool> RestoreAsync(Guid id, Guid ownerId, DateTimeOffset nowUtc, CancellationToken ct) =>
+		await db.StoredFiles
+			.Where(f => f.Id == id && f.OwnerId == ownerId)
+			.ExecuteUpdateAsync(
+				s => s
+					.SetProperty(f => f.DeletedAtUtc, (DateTimeOffset?)null)
+					.SetProperty(f => f.UpdatedAtUtc, nowUtc),
+				ct) == 1;
+
+	public async Task<IReadOnlyList<StoredFile>> ListTrashAsync(Guid ownerId, Guid? afterId, int limit, CancellationToken ct)
+	{
+		var query = db.StoredFiles.AsNoTracking()
+			.Where(f => f.OwnerId == ownerId && f.DeletedAtUtc != null);
+
+		if (afterId is { } cursor)
+			query = query.Where(f => f.Id > cursor);
+
+		return await query.OrderBy(f => f.Id).Take(limit).ToListAsync(ct);
+	}
+
+	public async Task<IReadOnlyList<StoredFile>> ListExpiredTrashAsync(DateTimeOffset cutoffUtc, int limit, CancellationToken ct) =>
+		await db.StoredFiles.AsNoTracking()
+			.Where(f => f.DeletedAtUtc != null && f.DeletedAtUtc <= cutoffUtc)
+			.OrderBy(f => f.DeletedAtUtc)
+			.Take(limit)
+			.ToListAsync(ct);
+
+	public async Task<bool> PurgeIfTrashedAsync(Guid id, Guid ownerId, CancellationToken ct) =>
+		await db.StoredFiles
+			.Where(f => f.Id == id && f.OwnerId == ownerId && f.DeletedAtUtc != null)
+			.ExecuteDeleteAsync(ct) == 1;
+
+	public async Task<bool> PurgeIfStillExpiredAsync(Guid id, Guid ownerId, DateTimeOffset cutoffUtc, CancellationToken ct) =>
+		await db.StoredFiles
+			.Where(f => f.Id == id && f.OwnerId == ownerId && f.DeletedAtUtc != null && f.DeletedAtUtc <= cutoffUtc)
 			.ExecuteDeleteAsync(ct) == 1;
 
 	public Task SaveChangesAsync(CancellationToken ct) => db.SaveChangesAsync(ct);

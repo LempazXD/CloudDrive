@@ -31,5 +31,32 @@ public interface IStoredFileRepository
 
 	Task<bool> DeleteAsync(Guid id, Guid ownerId, CancellationToken ct);
 
+	Task<bool> SoftDeleteAsync(Guid id, Guid ownerId, DateTimeOffset nowUtc, CancellationToken ct);
+
+	Task<bool> RestoreAsync(Guid id, Guid ownerId, DateTimeOffset nowUtc, CancellationToken ct);
+
+	Task<IReadOnlyList<StoredFile>> ListTrashAsync(Guid ownerId, Guid? afterId, int limit, CancellationToken ct);
+
+	/// <summary>
+	/// Кандидаты на окончательное удаление фоновой очисткой: строки в корзине, чей срок хранения
+	/// истёк по состоянию на <paramref name="cutoffUtc"/>. Кросс-пользовательский запрос - вызывается
+	/// только системной очисткой, не по запросу пользователя.
+	/// </summary>
+	Task<IReadOnlyList<StoredFile>> ListExpiredTrashAsync(DateTimeOffset cutoffUtc, int limit, CancellationToken ct);
+
+	/// <summary>
+	/// Окончательно удаляет строку, только если она сейчас в корзине - независимо от того, как давно.
+	/// Для ручного purge (пользователь явно просит удалить немедленно, минуя срок хранения).
+	/// </summary>
+	Task<bool> PurgeIfTrashedAsync(Guid id, Guid ownerId, CancellationToken ct);
+
+	/// <summary>
+	/// Окончательно удаляет строку, только если она всё ещё в корзине и всё ещё просрочена на момент
+	/// записи (не только на момент исходной выборки в <see cref="ListExpiredTrashAsync"/>) - если файл
+	/// восстановили, или восстановили и тут же удалили заново, между выборкой батча и этим вызовом,
+	/// условие не совпадёт и строка останется нетронутой. Для автоматической фоновой очистки.
+	/// </summary>
+	Task<bool> PurgeIfStillExpiredAsync(Guid id, Guid ownerId, DateTimeOffset cutoffUtc, CancellationToken ct);
+
 	Task SaveChangesAsync(CancellationToken ct);
 }
