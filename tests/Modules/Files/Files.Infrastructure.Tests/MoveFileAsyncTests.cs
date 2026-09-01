@@ -31,6 +31,24 @@ public sealed class MoveFileAsyncTests
 	}
 
 	[Fact]
+	public async Task MoveFileAsync_FileInTrash_ReturnsInTrash()
+	{
+		var harness = new FilesServiceTestHarness();
+		var ownerId = Guid.NewGuid();
+		var file = CreateFile(ownerId, null, "report.txt", harness.TimeProvider.GetUtcNow())
+			.SetDeletedAtUtc(harness.TimeProvider.GetUtcNow());
+		harness.StoredFileRepository.GetByIdAsync(file.Id, ownerId, Arg.Any<CancellationToken>()).Returns(file);
+		var sut = harness.CreateSut();
+
+		var result = await sut.MoveFileAsync(ownerId, file.Id, Guid.NewGuid(), CancellationToken.None);
+
+		Assert.True(result.IsFailure);
+		Assert.Equal("Files.File.InTrash", result.Error!.Code);
+		_ = harness.StoredFileRepository.DidNotReceive().MoveAsync(
+			Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
 	public async Task MoveFileAsync_SameFolder_ReturnsSuccessWithoutCallingMoveAsync()
 	{
 		var harness = new FilesServiceTestHarness();

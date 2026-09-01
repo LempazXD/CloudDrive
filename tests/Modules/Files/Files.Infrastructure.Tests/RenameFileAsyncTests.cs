@@ -126,6 +126,24 @@ public sealed class RenameFileAsyncTests
 	}
 
 	[Fact]
+	public async Task RenameFileAsync_FileInTrash_ReturnsInTrash()
+	{
+		var harness = new FilesServiceTestHarness();
+		var ownerId = Guid.NewGuid();
+		var file = CreateFile(ownerId, null, "old.txt", harness.TimeProvider.GetUtcNow())
+			.SetDeletedAtUtc(harness.TimeProvider.GetUtcNow());
+		harness.StoredFileRepository.GetByIdAsync(file.Id, ownerId, Arg.Any<CancellationToken>()).Returns(file);
+		var sut = harness.CreateSut();
+
+		var result = await sut.RenameFileAsync(ownerId, file.Id, "new.txt", CancellationToken.None);
+
+		Assert.True(result.IsFailure);
+		Assert.Equal("Files.File.InTrash", result.Error!.Code);
+		_ = harness.StoredFileRepository.DidNotReceive().RenameAsync(
+			Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
 	public async Task RenameFileAsync_DeletedBetweenFetchAndWrite_ReturnsNotFound()
 	{
 		// Регрессия на найденную при проектировании гонку - см. аналогичный тест в

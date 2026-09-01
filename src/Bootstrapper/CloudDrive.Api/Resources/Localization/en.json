@@ -49,6 +49,8 @@
 	"Files.File.AlreadyCompleted": "This upload is already completing or has already completed.",
 	"Files.File.InvalidPageSize": "The page size must be greater than zero.",
 	"Files.File.InvalidCursor": "The pagination cursor is not valid.",
+	"Files.File.InTrash": "This file is in the trash.",
+	"Files.File.NotInTrash": "This file is not in the trash.",
 	"Files.Folder.NotFound": "The folder was not found.",
 	"Files.Folder.InvalidName": "The folder name is not valid.",
 	"Files.Folder.NameTooLong": "The folder name must not exceed 255 characters.",

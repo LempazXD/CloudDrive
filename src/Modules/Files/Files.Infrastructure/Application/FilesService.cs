@@ -17,6 +17,7 @@ internal sealed class FilesService(
 	IGuidProvider guidProvider,
 	TimeProvider timeProvider,
 	IOptions<ObjectStorageOptions> objectStorageOptions,
+	IOptions<TrashOptions> trashOptions,
 	ILogger<FilesService> logger) : IFilesService
 {
 	private const int MaxPageSize = 100;
@@ -98,6 +99,9 @@ internal sealed class FilesService(
 		if (file is null)
 			return Error.NotFound("Files.File.NotFound");
 
+		if (file.DeletedAtUtc is not null)
+			return Error.Conflict("Files.File.InTrash");
+
 		if (file.UploadId is not null && parts.Count != file.ExpectedPartCount)
 		{
 			logger.LogWarning(
@@ -157,6 +161,9 @@ internal sealed class FilesService(
 		if (file is null)
 			return Error.NotFound("Files.File.NotFound");
 
+		if (file.DeletedAtUtc is not null)
+			return Error.Conflict("Files.File.InTrash");
+
 		// Имя не изменилось (после нормализации) - успех без записи: не только оптимизация, но и
 		// повод не трогать UpdatedAtUtc, когда фактически ничего не поменялось.
 		if (file.OriginalFileName == normalizedName)
@@ -192,6 +199,9 @@ internal sealed class FilesService(
 		var file = await storedFileRepository.GetByIdAsync(fileId, ownerId, ct);
 		if (file is null)
 			return Error.NotFound("Files.File.NotFound");
+
+		if (file.DeletedAtUtc is not null)
+			return Error.Conflict("Files.File.InTrash");
 
 		// Папка не изменилась - успех без записи: та же причина, что у RenameFileAsync -
 		// не трогать UpdatedAtUtc зря и не думать о самоконфликте с уникальным индексом.
@@ -265,32 +275,131 @@ internal sealed class FilesService(
 	{
 		var file = await storedFileRepository.GetByIdAsync(fileId, ownerId, ct);
 
-		if (file is null || file.Status != FileStatus.Completed)
+		if (file is null)
+			return Error.NotFound("Files.File.NotFound");
+
+		if (file.DeletedAtUtc is not null)
+			return Error.Conflict("Files.File.InTrash");
+
+		if (file.Status != FileStatus.Completed)
 			return Error.NotFound("Files.File.NotFound");
 
 		var url = await blobStorage.GetPresignedDownloadUrlAsync(file.StorageKey, file.OriginalFileName, file.ContentType, ct);
 		return Result.Success(url);
 	}
 
-	// TODO: корзина для удалённых файлов не реализована - удаление необратимо
+	// Мягкое удаление - строка и объект в хранилище остаются нетронутыми до истечения срока хранения
+	// (TrashOptions.RetentionPeriod) либо явного PurgeFileAsync. Окончательно удаляет
+	// TrashPurgeRecurringJob.
 	public async Task<Result> DeleteFileAsync(Guid ownerId, Guid fileId, CancellationToken ct)
 	{
 		var file = await storedFileRepository.GetByIdAsync(fileId, ownerId, ct);
 		if (file is null)
 			return Result.Failure(Error.NotFound("Files.File.NotFound"));
 
-		// Сначала удаляем объект в хранилище, затем строку в БД. Если DB-удаление
-		// упадёт, останется мёртвая строка, указывающая на уже удалённый объект
-		await blobStorage.DeleteObjectAsync(file.StorageKey, ct);
-		await storedFileRepository.DeleteAsync(fileId, ownerId, ct);
+		// Уже в корзине - идемпотентный no-op, а не ошибка: повторный DELETE (например, ретрай на
+		// клиенте) не должен требовать отдельной обработки и тем более не должен эскалировать до
+		// безвозвратного удаления - для этого есть отдельный явный PurgeFileAsync.
+		if (file.DeletedAtUtc is not null)
+			return Result.Success();
 
-		logger.LogInformation("File {FileId} deleted for owner {OwnerId}.", fileId, ownerId);
+		var now = timeProvider.GetUtcNow();
+		var trashed = await storedFileRepository.SoftDeleteAsync(fileId, ownerId, now, ct);
+		if (!trashed)
+			return Result.Failure(Error.NotFound("Files.File.NotFound")); // гонка: удалили между fetch и записью
+
+		logger.LogInformation("File {FileId} moved to trash for owner {OwnerId}.", fileId, ownerId);
 
 		return Result.Success();
 	}
 
-	private static FileSummary ToSummary(StoredFile file) => new(
-		file.Id, file.FolderId, file.OriginalFileName, file.ContentType, file.SizeBytes, file.Status, file.CreatedAtUtc);
+	public async Task<Result<FileSummary>> RestoreFileAsync(Guid ownerId, Guid fileId, CancellationToken ct)
+	{
+		var file = await storedFileRepository.GetByIdAsync(fileId, ownerId, ct);
+		if (file is null)
+			return Error.NotFound("Files.File.NotFound");
+
+		if (file.DeletedAtUtc is null)
+			return Error.Conflict("Files.File.NotInTrash");
+
+		var now = timeProvider.GetUtcNow();
+		bool restored;
+		try
+		{
+			restored = await storedFileRepository.RestoreAsync(fileId, ownerId, now, ct);
+		}
+		catch (Exception ex) when (UniqueConstraintExceptionHelper.IsUniqueViolation(ex))
+		{
+			// Пока файл лежал в корзине, его место (OwnerId, FolderId, Name) занял другой активный
+			// файл - восстановление в то же имя и папку конфликтует с ним.
+			logger.LogWarning(
+				"Restore file hit a unique-constraint race on name {Name} for file {FileId} owned by {OwnerId}.",
+				file.OriginalFileName, fileId, ownerId);
+			return Error.Conflict("Files.File.NameConflict");
+		}
+
+		// false здесь означает, что файл окончательно удалён (purge) в промежутке между GetByIdAsync
+		// выше и этим вызовом - тоже NotFound, тот же паттерн, что у RenameAsync/MoveAsync.
+		if (!restored)
+			return Error.NotFound("Files.File.NotFound");
+
+		logger.LogInformation("File {FileId} restored from trash for owner {OwnerId}.", fileId, ownerId);
+
+		// Строится из уже прочитанного file, без повторного fetch - та же причина, что у
+		// RenameFileAsync/MoveFileAsync: повторное чтение после записи может словить гонку с
+		// параллельным удалением и превратить успешное восстановление в ложный NotFound.
+		return Result.Success(ToSummary(file) with { DeletedAtUtc = null, PurgeAtUtc = null });
+	}
+
+	public async Task<Result<CursorPage<FileSummary>>> ListTrashAsync(Guid ownerId, string? cursor, int limit, CancellationToken ct)
+	{
+		if (limit <= 0)
+			return Error.Validation("Files.File.InvalidPageSize");
+
+		Guid? afterId = null;
+		if (!string.IsNullOrEmpty(cursor))
+		{
+			if (!Cursor.TryDecode(cursor, out var decoded))
+				return Error.Validation("Files.File.InvalidCursor");
+			afterId = decoded;
+		}
+
+		var effectiveLimit = Math.Min(limit, MaxPageSize);
+		var files = await storedFileRepository.ListTrashAsync(ownerId, afterId, effectiveLimit + 1, ct);
+
+		var hasMore = files.Count > effectiveLimit;
+		var page = hasMore ? files.Take(effectiveLimit).ToList() : files;
+		var nextCursor = hasMore ? Cursor.Encode(page[^1].Id) : null;
+
+		return Result.Success(new CursorPage<FileSummary>(page.Select(ToSummary).ToList(), nextCursor));
+	}
+
+	public async Task<Result> PurgeFileAsync(Guid ownerId, Guid fileId, CancellationToken ct)
+	{
+		var file = await storedFileRepository.GetByIdAsync(fileId, ownerId, ct);
+		if (file is null)
+			return Result.Failure(Error.NotFound("Files.File.NotFound"));
+
+		if (file.DeletedAtUtc is null)
+			return Result.Failure(Error.Conflict("Files.File.NotInTrash"));
+
+		// Условное удаление строки сначала, блоб - только если оно реально её затронуло: если файл
+		// восстановили в промежутке между fetch и этим вызовом, блоб трогать нельзя, иначе строка
+		// осталась бы "активной", указывая на уже стёртый объект.
+		var purged = await storedFileRepository.PurgeIfTrashedAsync(fileId, ownerId, ct);
+		if (!purged)
+			return Result.Failure(Error.NotFound("Files.File.NotFound"));
+
+		await blobStorage.DeleteObjectAsync(file.StorageKey, ct);
+
+		logger.LogInformation("File {FileId} permanently purged for owner {OwnerId}.", fileId, ownerId);
+
+		return Result.Success();
+	}
+
+	private FileSummary ToSummary(StoredFile file) => new(
+		file.Id, file.FolderId, file.OriginalFileName, file.ContentType, file.SizeBytes, file.Status, file.CreatedAtUtc,
+		file.DeletedAtUtc, file.DeletedAtUtc?.Add(trashOptions.Value.RetentionPeriod));
 
 	private static bool IsValidSha256(string? value) =>
 		value is { Length: 64 } && value.All(Uri.IsHexDigit);

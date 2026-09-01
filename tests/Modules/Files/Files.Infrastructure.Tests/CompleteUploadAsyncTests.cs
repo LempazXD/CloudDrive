@@ -28,6 +28,26 @@ public sealed class CompleteUploadAsyncTests
 	}
 
 	[Fact]
+	public async Task CompleteUploadAsync_FileInTrash_ReturnsInTrash()
+	{
+		var harness = new FilesServiceTestHarness();
+		var ownerId = Guid.NewGuid();
+		var file = StoredFile.Create(
+				Guid.NewGuid(), ownerId, null, "a.txt", "text/plain", 10,
+				ValidSha256, "key", null, expectedPartCount: 1, harness.TimeProvider.GetUtcNow())
+			.SetDeletedAtUtc(harness.TimeProvider.GetUtcNow());
+		harness.StoredFileRepository.GetByIdAsync(file.Id, ownerId, Arg.Any<CancellationToken>()).Returns(file);
+		var sut = harness.CreateSut();
+
+		var result = await sut.CompleteUploadAsync(ownerId, file.Id, [], CancellationToken.None);
+
+		Assert.True(result.IsFailure);
+		Assert.Equal("Files.File.InTrash", result.Error!.Code);
+		_ = harness.StoredFileRepository.DidNotReceive().TryCompleteAsync(
+			Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<DateTimeOffset>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
 	public async Task CompleteUploadAsync_PartCountMismatch_ReturnsChecksumMismatch()
 	{
 		var harness = new FilesServiceTestHarness();

@@ -49,6 +49,8 @@
 	"Files.File.AlreadyCompleted": "Эта загрузка уже завершается или уже завершена.",
 	"Files.File.InvalidPageSize": "Размер страницы должен быть больше нуля.",
 	"Files.File.InvalidCursor": "Некорректный курсор пагинации.",
+	"Files.File.InTrash": "Этот файл находится в корзине.",
+	"Files.File.NotInTrash": "Этот файл не находится в корзине.",
 	"Files.Folder.NotFound": "Папка не найдена.",
 	"Files.Folder.InvalidName": "Некорректное имя папки.",
 	"Files.Folder.NameTooLong": "Имя папки не должно превышать 255 символов.",

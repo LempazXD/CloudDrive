@@ -25,6 +25,27 @@ public sealed class GetDownloadUrlAsyncTests
 	}
 
 	[Fact]
+	public async Task GetDownloadUrlAsync_FileInTrash_ReturnsInTrash()
+	{
+		var harness = new FilesServiceTestHarness();
+		var ownerId = Guid.NewGuid();
+		var file = StoredFile.Create(
+				Guid.NewGuid(), ownerId, null, "a.txt", "text/plain", 10, ValidSha256, "key", null, 1,
+				harness.TimeProvider.GetUtcNow())
+			.SetStatus(FileStatus.Completed)
+			.SetDeletedAtUtc(harness.TimeProvider.GetUtcNow());
+		harness.StoredFileRepository.GetByIdAsync(file.Id, ownerId, Arg.Any<CancellationToken>()).Returns(file);
+		var sut = harness.CreateSut();
+
+		var result = await sut.GetDownloadUrlAsync(ownerId, file.Id, CancellationToken.None);
+
+		Assert.True(result.IsFailure);
+		Assert.Equal("Files.File.InTrash", result.Error!.Code);
+		await harness.BlobStorage.DidNotReceive().GetPresignedDownloadUrlAsync(
+			Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+	}
+
+	[Fact]
 	public async Task GetDownloadUrlAsync_NotCompleted_ReturnsNotFound()
 	{
 		var harness = new FilesServiceTestHarness();

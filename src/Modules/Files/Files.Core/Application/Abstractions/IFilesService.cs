@@ -27,4 +27,10 @@ public interface IFilesService
 	Task<Result<string>> GetDownloadUrlAsync(Guid ownerId, Guid fileId, CancellationToken ct);
 
 	Task<Result> DeleteFileAsync(Guid ownerId, Guid fileId, CancellationToken ct);
+
+	Task<Result<FileSummary>> RestoreFileAsync(Guid ownerId, Guid fileId, CancellationToken ct);
+
+	Task<Result<CursorPage<FileSummary>>> ListTrashAsync(Guid ownerId, string? cursor, int limit, CancellationToken ct);
+
+	Task<Result> PurgeFileAsync(Guid ownerId, Guid fileId, CancellationToken ct);
 }

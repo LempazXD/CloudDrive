@@ -13,9 +13,20 @@ internal static class StoredFileTestExtensions
 	private static readonly PropertyInfo StatusProperty =
 		typeof(StoredFile).GetProperty(nameof(StoredFile.Status))!;
 
+	private static readonly PropertyInfo DeletedAtUtcProperty =
+		typeof(StoredFile).GetProperty(nameof(StoredFile.DeletedAtUtc))!;
+
 	public static StoredFile SetStatus(this StoredFile file, FileStatus status)
 	{
 		StatusProperty.SetValue(file, status);
+		return file;
+	}
+
+	// DeletedAtUtc тоже переходит в непустое состояние только через ExecuteUpdateAsync
+	// (StoredFileRepository.SoftDeleteAsync) - тот же приём, что SetStatus.
+	public static StoredFile SetDeletedAtUtc(this StoredFile file, DateTimeOffset? deletedAtUtc)
+	{
+		DeletedAtUtcProperty.SetValue(file, deletedAtUtc);
 		return file;
 	}
 }

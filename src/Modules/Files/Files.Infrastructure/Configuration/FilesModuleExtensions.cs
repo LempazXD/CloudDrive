@@ -17,6 +17,7 @@ public static class FilesModuleExtensions
 	public static IServiceCollection AddFilesModule(this IServiceCollection services, IConfiguration configuration)
 	{
 		services.AddObjectStorageOptions(configuration);
+		services.AddTrashOptions(configuration);
 
 		services.AddDbContext<FilesDbContext>((sp, options) =>
 			options.UseNpgsql(
@@ -63,6 +64,14 @@ public static class FilesModuleExtensions
 			.Validate<IHostEnvironment>(
 				(o, env) => env.IsDevelopment() || o.EffectivePublicEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase),
 				"ObjectStorage:PublicEndpoint (or Endpoint, if unset) must use https outside Development.")
+			.ValidateOnStart();
+	}
+
+	private static void AddTrashOptions(this IServiceCollection services, IConfiguration configuration)
+	{
+		services.AddOptions<TrashOptions>()
+			.Bind(configuration.GetSection("Trash"))
+			.Validate(o => o.RetentionPeriod > TimeSpan.Zero, "Trash:RetentionPeriod must be positive.")
 			.ValidateOnStart();
 	}
 }

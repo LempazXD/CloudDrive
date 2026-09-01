@@ -11,9 +11,9 @@ namespace Files.Infrastructure.Tests.TestSupport;
 
 /// <summary>
 /// Собирает все зависимости <see cref="FilesService"/> как NSubstitute-моки (кроме
-/// <see cref="TimeProvider"/> и <see cref="ObjectStorageOptions"/> - их проще использовать
-/// настоящими) и строит сам SUT. Каждый тест создаёт свой экземпляр, поэтому моки не расшарены
-/// между тестами.
+/// <see cref="TimeProvider"/>, <see cref="ObjectStorageOptions"/> и <see cref="TrashOptions"/> -
+/// их проще использовать настоящими) и строит сам SUT. Каждый тест создаёт свой экземпляр,
+/// поэтому моки не расшарены между тестами.
 /// </summary>
 internal sealed class FilesServiceTestHarness
 {
@@ -33,6 +33,11 @@ internal sealed class FilesServiceTestHarness
 		CompletionStaleAfter = TimeSpan.FromMinutes(2)
 	};
 
+	public TrashOptions TrashOptions { get; } = new()
+	{
+		RetentionPeriod = TimeSpan.FromDays(30)
+	};
+
 	public IFilesService CreateSut() => new FilesService(
 		StoredFileRepository,
 		FolderRepository,
@@ -40,5 +45,6 @@ internal sealed class FilesServiceTestHarness
 		GuidProvider,
 		TimeProvider,
 		Options.Create(ObjectStorageOptions),
+		Options.Create(TrashOptions),
 		Logger);
 }
