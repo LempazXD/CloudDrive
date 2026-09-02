@@ -63,6 +63,10 @@ internal sealed class FolderRepository(FilesDbContext db) : IFolderRepository
 			// вызова этого метода, так что вся цепочка по построению принадлежит одному owner),
 			// а чтобы корректность запроса не зависела от инварианта, поддерживаемого далеко
 			// отсюда, в другом слое.
+			// AS "Value" обязателен: .SingleAsync() ниже композирует этот SqlQuery<bool>, а EF Core
+			// материализует скалярный SqlQuery<T> оборачиванием в SELECT s."Value" FROM (...) AS s -
+			// без алиаса Postgres падает на несуществующей колонке "Value" (у EXISTS(...) по
+			// умолчанию колонка называется exists).
 			var wouldCycle = await db.Database.SqlQuery<bool>($"""
 				WITH RECURSIVE ancestors AS (
 					SELECT "Id", "ParentFolderId", 0 AS depth
@@ -74,7 +78,7 @@ internal sealed class FolderRepository(FilesDbContext db) : IFolderRepository
 					INNER JOIN ancestors a ON f."Id" = a."ParentFolderId"
 					WHERE f."OwnerId" = {ownerId} AND a.depth < {MaxAncestorDepth}
 				)
-				SELECT EXISTS (SELECT 1 FROM ancestors WHERE "Id" = {id})
+				SELECT EXISTS (SELECT 1 FROM ancestors WHERE "Id" = {id}) AS "Value"
 				""").SingleAsync(ct);
 
 			if (wouldCycle)
