@@ -6,6 +6,7 @@ using Auth.Infrastructure.Configuration;
 using Files.Endpoints;
 using Files.Infrastructure.Configuration;
 using Files.Infrastructure.Storage;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -35,9 +36,11 @@ builder.Services.AddRateLimiter(options =>
 	options.OnRejected = RateLimitRejectionHandler.HandleAsync;
 });
 
-builder.Services.AddNpgsqlDataSource(
-	builder.Configuration.GetConnectionString("CloudDrive")
-		?? throw new InvalidOperationException("Connection string 'CloudDrive' is not configured."));
+var connectionString = builder.Configuration.GetConnectionString("CloudDrive")
+	?? throw new InvalidOperationException("Connection string 'CloudDrive' is not configured.");
+
+builder.AddHangfireConfiguration(connectionString);
+builder.Services.AddNpgsqlDataSource(connectionString);
 
 builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddFilesModule(builder.Configuration);
@@ -87,6 +90,7 @@ if (app.Environment.IsDevelopment())
 {
 	app.MapOpenApi();
 	app.MapScalarApiReference();  // localhost:5166/scalar
+	app.UseHangfireDashboard("/hangfire");  // localhost:5166/hangfire
 }
 
 await app.RunAsync();
