@@ -67,6 +67,8 @@ if (builder.Configuration.GetValue<bool>("Migrations:ApplyOnStartup"))
 	await app.Services.MigrateFilesModuleAsync();
 }
 
+app.Services.ScheduleFilesModuleJobs();
+
 app.UseLoggingConfiguration();
 
 app.UseRequestLocalizationConfiguration();

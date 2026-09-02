@@ -1,8 +1,10 @@
 using Amazon.S3;
 using Files.Core.Application.Abstractions;
 using Files.Infrastructure.Application;
+using Files.Infrastructure.BackgroundJobs;
 using Files.Infrastructure.Persistence;
 using Files.Infrastructure.Storage;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +38,8 @@ public static class FilesModuleExtensions
 		services.AddSingleton<IBlobStorage, SeaweedFsBlobStorage>();
 		services.AddScoped<IFilesService, FilesService>();
 		services.AddScoped<IFolderService, FolderService>();
+		services.AddScoped<ITrashPurgeService, TrashPurgeService>();
+		services.AddScoped<TrashPurgeRecurringJob>();
 
 		return services;
 	}
@@ -44,6 +48,16 @@ public static class FilesModuleExtensions
 	{
 		await using var scope = services.CreateAsyncScope();
 		await scope.ServiceProvider.GetRequiredService<FilesDbContext>().Database.MigrateAsync();
+	}
+
+	// AddOrUpdate идемпотентен - безопасно вызывать на каждом старте, не только один раз.
+	public static void ScheduleFilesModuleJobs(this IServiceProvider services)
+	{
+		var recurringJobs = services.GetRequiredService<IRecurringJobManager>();
+		var purgeInterval = services.GetRequiredService<IOptions<TrashOptions>>().Value.PurgeInterval;
+
+		recurringJobs.AddOrUpdate<TrashPurgeRecurringJob>(
+			"files-trash-purge", job => job.RunAsync(CancellationToken.None), ToCronExpression(purgeInterval));
 	}
 
 	private static void AddObjectStorageOptions(this IServiceCollection services, IConfiguration configuration)
@@ -72,7 +86,22 @@ public static class FilesModuleExtensions
 		services.AddOptions<TrashOptions>()
 			.Bind(configuration.GetSection("Trash"))
 			.Validate(o => o.RetentionPeriod > TimeSpan.Zero, "Trash:RetentionPeriod must be positive.")
+			.Validate(o => o.PurgeInterval > TimeSpan.Zero, "Trash:PurgeInterval must be positive.")
+			.Validate(
+				IsValidPurgeInterval,
+				"Trash:PurgeInterval must be a whole number of hours dividing evenly into 24, or (if under an hour) a whole number of minutes dividing evenly into 60 - a limitation of cron's */N syntax, which Hangfire's recurring-job schedule is built from.")
 			.Validate(o => o.PurgeBatchSize > 0, "Trash:PurgeBatchSize must be positive.")
 			.ValidateOnStart();
 	}
+
+	// Cron's */N syntax means "when the field is a multiple of N", not "N units after the last run" -
+	// only interval values that divide evenly into their field's range repeat at a truly constant
+	// gap (Cron.HourInterval(5), for example, fires at 0/5/10/15/20, a short 4-hour gap back to 0).
+	private static bool IsValidPurgeInterval(TrashOptions options) =>
+		options.PurgeInterval.TotalHours >= 1
+			? options.PurgeInterval.TotalHours == Math.Floor(options.PurgeInterval.TotalHours) && 24 % (int)options.PurgeInterval.TotalHours == 0
+			: options.PurgeInterval.TotalMinutes == Math.Floor(options.PurgeInterval.TotalMinutes) && 60 % (int)options.PurgeInterval.TotalMinutes == 0;
+
+	private static string ToCronExpression(TimeSpan interval) =>
+		interval.TotalHours >= 1 ? Cron.HourInterval((int)interval.TotalHours) : Cron.MinuteInterval((int)interval.TotalMinutes);
 }
